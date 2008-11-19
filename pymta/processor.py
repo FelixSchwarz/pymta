@@ -1,5 +1,7 @@
 # -*- coding: UTF-8 -*-
 
+from sets import Set
+
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
 __all__ = ['SMTPProcessor']
@@ -27,15 +29,32 @@ class SMTPProcessor(object):
         self.state.add(from_state, smtp_command, to_state, handler_function)
     
     
+    def _add_noop_and_quit_transitions(self):
+        """NOOP and QUIT should be possible from everywhere so we need to add 
+        these transitions to all states configured so far."""
+        states = Set()
+        for key in self.state.states:
+            new_state = self.state.states[key]
+            state_name = new_state[0]
+            if state_name not in ['new', 'finished']:
+                states.add(state_name)
+        for state in states:
+            self._add_state(state, 'NOOP',  state)
+            self._add_state(state, 'QUIT',  'finished')
+        
+    
     def _build_state_machine(self):
         # This will implicitely declare an instance variable '_state' with the
         # initial state
         self.state = StateMachine('_state', initial_state='new')
         self._add_state('new',     'GREET', 'greeted')
         self._add_state('greeted', 'HELO',  'identify')
-        self._add_state('identify', 'QUIT',  'finished')
-        self._add_state('greeted', 'QUIT',  'finished')
-        self.valid_commands = [command for new_state, command in self.state.states]
+        self._add_state('identify', 'MAIL FROM',  'sender_known')
+        self._add_state('sender_known', 'RCPT TO',  'recipient_known')
+        self._add_state('recipient_known', 'DATA',  'identify')
+        # How to add commands?
+        self._add_noop_and_quit_transitions()
+        self.valid_commands = [command for from_state, command in self.state.states]
     
     
     def _dispatch_commands(self, from_state, to_state, smtp_command, ob):
@@ -43,7 +62,7 @@ class SMTPProcessor(object):
         method. It is called after a new command was received and a valid 
         transition was found."""
         print from_state, ' -> ', to_state, ':', smtp_command
-        name_handler_method = 'smtp_%s' % smtp_command.lower()
+        name_handler_method = 'smtp_%s' % smtp_command.lower().replace(' ', '_')
         try:
             handler_method = getattr(self, name_handler_method)
         except AttributeError:
@@ -82,13 +101,13 @@ class SMTPProcessor(object):
             self.state.execute(self, command)
         except StateMachineError:
             if command not in self.valid_commands:
-                self.reply(500, 'unrecognized command')
+                self.reply(500, 'unrecognized command "%s"' % smtp_command)
             else:
                 msg = 'Command "%s" is not allowed here' % smtp_command
                 allowed_transitions = self.state.transitions(self)
                 if len(allowed_transitions) > 0:
                       msg += ', expected on of %s' % allowed_transitions
-                self.reply(502, msg)
+                self.reply(503, msg)
         self._command_arguments = None
     
     
@@ -121,11 +140,26 @@ class SMTPProcessor(object):
         self.reply(221, reply_text)
         self._session.close_when_done()
     
+    def smtp_noop(self):
+        self.reply(250, 'OK')
+    
     def smtp_helo(self):
         helo_string = self._command_arguments
         # We could store the helo string for a later check
         primary_hostname = self._session.primary_hostname
         self.reply(250, primary_hostname)
+    
+    def smtp_mail_from(self):
+        raise NotImplementedError
+        self.reply(250, 'NI')
+    
+    def smtp_rcpt_to(self):
+        raise NotImplementedError
+        self.reply(250, 'NI')
+    
+    def smtp_data(self):
+        raise NotImplementedError
+        self.reply(250, 'NI')
         
         
 

@@ -27,9 +27,15 @@ class BasicMessageSendingTest(TestCase):
         self.processor = SMTPProcessor(session=self.session)
         self.processor.new_connection('127.0.0.1', 4567)
     
+    def _send(self, command, data=None):
+        number_replies_before = len(self.session.replies)
+        self.processor.handle_input(command, data)
+        self.assertEqual(number_replies_before + 1, len(self.session.replies))
+        code, reply_text = self.session.replies[-1]
+        self.assertEqual('2', str(code)[0], "%s %s" % (code, reply_text))
+    
     def _close_connection(self):
-        self.processor.handle_input('quit')
-        self.assertTrue(len(self.session.replies) >= 1)
+        self._send('quit')
         code, reply_text = self.session.replies[-1]
         self.assertTrue(221, code)
         self.assertEqual('localhost closing connection', reply_text)
@@ -43,19 +49,23 @@ class BasicMessageSendingTest(TestCase):
         self._close_connection()
     
     def test_send_helo(self):
-        self.processor.handle_input('helo', 'foo.example.com')
+        self._send('helo', 'foo.example.com')
         self.assertEqual(2, len(self.session.replies))
         code, reply_text = self.session.replies[-1]
         self.assertEqual(250, code)
         self.assertEqual('localhost', reply_text)
         self._close_connection()
+    
+    def test_noop_does_nothing(self):
+        self._send('noop')
+        self._close_connection()
 
     def test_reject_duplicated_helo(self):
-        self.processor.handle_input('helo', 'foo.example.com')
+        self._send('helo', 'foo.example.com')
         self.processor.handle_input('helo', 'foo.example.com')
         self.assertEqual(3, len(self.session.replies))
         code, reply_text = self.session.replies[-1]
-        self.assertEqual(502, code)
+        self.assertEqual(503, code)
         expected_message = 'Command "helo" is not allowed here'
         self.assertTrue(reply_text.startswith(expected_message), reply_text)
         self._close_connection()
@@ -65,15 +75,17 @@ class BasicMessageSendingTest(TestCase):
         self.assertEqual(2, len(self.session.replies))
         code, reply_text = self.session.replies[-1]
         self.assertEqual(500, code)
-        self.assertEqual('unrecognized command', reply_text)
+        self.assertEqual('unrecognized command "invalid"', reply_text)
         self._close_connection()
 
     def test_send_simple_mail(self):
-        self.processor.handle_input('MAIL FROM', 'foo@example.com')
-        self.processor.handle_input('RCPT TO', 'bar@example.com')
+        self._send('HELO', 'foo.example.com')
+        self._send('MAIL FROM', 'foo.example.com')
+        self._send('RCPT TO', 'bar@example.com')
         msg = 'Subject: Test\r\n\r\nJust testing...\r\n'
-        self.processor.handle_input('DATA', msg)
+        self._send('DATA', msg)
         self._close_connection()
+        raise NotImplementedError('We have to check the email')
 
 
 
