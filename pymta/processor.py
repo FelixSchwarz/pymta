@@ -33,8 +33,9 @@ class SMTPProcessor(object):
         self.state = StateMachine('_state', initial_state='new')
         self._add_state('new',     'GREET', 'greeted')
         self._add_state('greeted', 'HELO',  'identify')
-        self._add_state('greeted', 'EHLO',  'identify')
+        self._add_state('identify', 'QUIT',  'finished')
         self._add_state('greeted', 'QUIT',  'finished')
+        self.valid_commands = [command for new_state, command in self.state.states]
     
     
     def _dispatch_commands(self, from_state, to_state, smtp_command, ob):
@@ -80,17 +81,21 @@ class SMTPProcessor(object):
             # SMTP commands must be treated as case-insensitive
             self.state.execute(self, command)
         except StateMachineError:
-            base_msg = 'Command "%s" is not allowed here, expected on of %s'
-            msg = base_msg % (command, self.state.transitions(self))
-            print msg
-            self.reply(502, 'Error: %s not allowed here' % smtp_command)
+            if command not in self.valid_commands:
+                self.reply(500, 'unrecognized command')
+            else:
+                msg = 'Command "%s" is not allowed here' % smtp_command
+                allowed_transitions = self.state.transitions(self)
+                if len(allowed_transitions) > 0:
+                      msg += ', expected on of %s' % allowed_transitions
+                self.reply(502, msg)
         self._command_arguments = None
     
     
     def reply(self, code, text):
         """This method returns a message to the client (actually the session 
         object is responsible of actually pushing the bits)."""
-        self._session.push('%s %s' % (code, text))
+        self._session.push(code, text)
     
     
     def close_connection(self):
@@ -106,6 +111,22 @@ class SMTPProcessor(object):
     def smtp_greet(self):
         """This method handles not a real smtp command. It is called when a new
         connection was accepted by the server."""
-        self.reply(220, '%s %s' % (self._fqdn, self._server.version))
+        primary_hostname = self._session.primary_hostname
+        reply_text = '%s Hello %s' % (primary_hostname, self.remote_ip_string)
+        self.reply(220, reply_text)
+    
+    def smtp_quit(self):
+        primary_hostname = self._session.primary_hostname
+        reply_text = '%s closing connection' % primary_hostname
+        self.reply(221, reply_text)
+        self._session.close_when_done()
+    
+    def smtp_helo(self):
+        helo_string = self._command_arguments
+        # We could store the helo string for a later check
+        primary_hostname = self._session.primary_hostname
+        self.reply(250, primary_hostname)
+        
+        
 
 

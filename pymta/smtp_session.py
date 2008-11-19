@@ -43,7 +43,7 @@ class SMTPSession(asynchat.async_chat):
     
     def primary_hostname(self):
         return self._server.primary_hostname
-    _fqdn = property(primary_hostname)
+    primary_hostname = property(primary_hostname)
     
     
     # -------------------------------------------------------------------------
