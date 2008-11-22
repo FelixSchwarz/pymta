@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 
+import re
 from sets import Set
 
 from repoze.workflow.statemachine import StateMachine, StateMachineError
@@ -9,10 +10,23 @@ from pymta.model import Message, Peer
 __all__ = ['SMTPSession']
 
 
+class InvalidParametersException(Exception):
+    pass
+
+
+# regular expression deliberately taken from
+# http://stackoverflow.com/questions/106179/regular-expression-to-match-hostname-or-ip-address#106223
+regex_string = r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
+
+
 class SMTPSession(object):
     """The SMTPSession processes all input data which were extracted from 
     sockets previously. The idea behind is that this class is decoupled from 
-    asynchat as much as possible and make it really testable."""
+    asynchat as much as possible and make it really testable.
+    
+    The protocol parser will create a new session instance for every new 
+    connection so this class does not have to be thread-safe.
+    """
     
     def __init__(self, command_parser, policy=None):
         self._command_parser = command_parser
@@ -20,6 +34,9 @@ class SMTPSession(object):
         
         self._command_arguments = None
         self._message = None
+        
+        
+        self.hostname_regex = re.compile(regex_string, re.IGNORECASE)
         
         self._build_state_machine()
         
@@ -72,7 +89,11 @@ class SMTPSession(object):
             print base_msg % (smtp_command, name_handler_method)
             self.reply(451, 'Temporary Local Problem: Please come back later')
         else:
+            # Don't catch InvalidParametersException here - else the state would
+            # be moved forward. Instead the handle_input will catch it and send
+            # out the appropriate reply.
             handler_method()
+            
     
     # -------------------------------------------------------------------------
     
@@ -109,12 +130,15 @@ class SMTPSession(object):
                 if len(allowed_transitions) > 0:
                       msg += ', expected on of %s' % allowed_transitions
                 self.reply(503, msg)
+        except InvalidParametersException:
+            self.reply(501, 'Syntactically invalid %s argument(s)' % smtp_command)
         self._command_arguments = None
     
     
     def reply(self, code, text):
         """This method returns a message to the client (actually the session 
         object is responsible of actually pushing the bits)."""
+        print 'code, text', code, text
         self._command_parser.push(code, text)
     
     
@@ -145,10 +169,14 @@ class SMTPSession(object):
         self.reply(250, 'OK')
     
     def smtp_helo(self):
-        helo_string = self._command_arguments
-        self._message.smtp_helo = helo_string
-        primary_hostname = self._command_parser.primary_hostname
-        self.reply(250, primary_hostname)
+        helo_string = (self._command_arguments or '').strip()
+        valid_hostname_syntax = (self.hostname_regex.match(helo_string) != None)
+        if not valid_hostname_syntax:
+            raise InvalidParametersException(helo_string)
+        else:
+            self._message.smtp_helo = helo_string
+            primary_hostname = self._command_parser.primary_hostname
+            self.reply(250, primary_hostname)
     
     def smtp_mail_from(self):
         # TODO: Check for good email address!

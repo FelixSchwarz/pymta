@@ -9,7 +9,7 @@ __all__ = ['SMTPCommandParser']
 class SMTPCommandParser(asynchat.async_chat):
     """This class handles only the actual communication with the client. As soon
     as a complete command is received, this class will hand everything over to
-    the SMTPProcessor.
+    the SMTPSession.
     
     In the original 'SMTPChannel' class from Python.org this class handled 
     all communication with asynchat, implemented a extremly simple state machine
@@ -149,25 +149,6 @@ class SMTPCommandParser(asynchat.async_chat):
 
     # -------------------------------------------------------------------------
     # Methods that call policy checks
-    
-
-    # SMTP and ESMTP commands
-    def smtp_HELO(self, arg):
-        print 'helo', repr(self._greeting)
-        if not arg:
-            self.push('501 Syntax: HELO hostname')
-            return
-        if self._greeting:
-            self.push('503 Duplicate HELO/EHLO')
-        else:
-            print 'sending ', '250 %s' % self._fqdn
-            self._greeting = arg
-            self.push('250 %s' % self._fqdn)
-    
-    def smtp_QUIT(self, arg):
-        # args is ignored
-        self.push('221 Bye')
-        self.close_when_done()
 
     def smtp_MAIL(self, arg):
         print '===> MAIL', arg
