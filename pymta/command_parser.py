@@ -2,11 +2,11 @@
 
 import asynchat
 
-from pymta.processor import SMTPProcessor
+from pymta.session import SMTPSession
 
-__all__ = ['SMTPSession']
+__all__ = ['SMTPCommandParser']
 
-class SMTPSession(asynchat.async_chat):
+class SMTPCommandParser(asynchat.async_chat):
     """This class handles only the actual communication with the client. As soon
     as a complete command is received, this class will hand everything over to
     the SMTPProcessor.

@@ -6,16 +6,16 @@ from repoze.workflow.statemachine import StateMachine, StateMachineError
 
 from pymta.model import Message, Peer
 
-__all__ = ['SMTPProcessor']
+__all__ = ['SMTPSession']
 
 
-class SMTPProcessor(object):
-    """The SMTPProcessor processes all input data which were extracted from 
+class SMTPSession(object):
+    """The SMTPSession processes all input data which were extracted from 
     sockets previously. The idea behind is that this class is decoupled from 
     asynchat as much as possible and make it really testable."""
     
-    def __init__(self, session, policy=None):
-        self._session = session
+    def __init__(self, command_parser, policy=None):
+        self._command_parser = command_parser
         self._policy = policy
         
         self._command_arguments = None
@@ -115,12 +115,12 @@ class SMTPProcessor(object):
     def reply(self, code, text):
         """This method returns a message to the client (actually the session 
         object is responsible of actually pushing the bits)."""
-        self._session.push(code, text)
+        self._command_parser.push(code, text)
     
     
     def close_connection(self):
         "Request a connection close from the SMTP session handling instance."
-        self._session.close_when_done()
+        self._command_parser.close_when_done()
         self.remote_ip_string = None
         self.remote_port = None
     
@@ -131,15 +131,15 @@ class SMTPProcessor(object):
     def smtp_greet(self):
         """This method handles not a real smtp command. It is called when a new
         connection was accepted by the server."""
-        primary_hostname = self._session.primary_hostname
+        primary_hostname = self._command_parser.primary_hostname
         reply_text = '%s Hello %s' % (primary_hostname, self._message.peer.remote_ip)
         self.reply(220, reply_text)
     
     def smtp_quit(self):
-        primary_hostname = self._session.primary_hostname
+        primary_hostname = self._command_parser.primary_hostname
         reply_text = '%s closing connection' % primary_hostname
         self.reply(221, reply_text)
-        self._session.close_when_done()
+        self._command_parser.close_when_done()
     
     def smtp_noop(self):
         self.reply(250, 'OK')
@@ -147,7 +147,7 @@ class SMTPProcessor(object):
     def smtp_helo(self):
         helo_string = self._command_arguments
         self._message.smtp_helo = helo_string
-        primary_hostname = self._session.primary_hostname
+        primary_hostname = self._command_parser.primary_hostname
         self.reply(250, primary_hostname)
     
     def smtp_mail_from(self):
@@ -168,7 +168,7 @@ class SMTPProcessor(object):
         msg_data = self._command_arguments
         # TODO: Policy check
         self._message.msg_data = msg_data
-        self._session.new_message_received(self._message)
+        self._command_parser.new_message_received(self._message)
         self._message = None
         self.reply(250, 'OK')
         # Now we must not loose the message anymore!

@@ -3,7 +3,7 @@
 import socket
 
 from pymta.smtpd import SMTPServer
-from pymta.smtp_session import SMTPSession
+from pymta.command_parser import SMTPCommandParser
 
 __all__ = ['PythonMTA']
 
@@ -21,7 +21,7 @@ class PythonMTA(SMTPServer):
         connection, remote_ip_and_port = self.accept()
         remote_ip_string, port = remote_ip_and_port
         policy = self._policy_class()
-        SMTPSession(self, connection, remote_ip_and_port, policy)
+        SMTPCommandParser(self, connection, remote_ip_and_port, policy)
 
     
     def primary_hostname(self):
