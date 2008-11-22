@@ -12,6 +12,7 @@ class Message(object):
         self.msg_data = msg_data
 
 
+
 class Peer(object):
     def __init__(self, remote_ip, remote_port):
         self.remote_ip = remote_ip

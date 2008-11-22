@@ -2,7 +2,8 @@
 
 from unittest import TestCase
 
-from pymta import SMTPProcessor
+from pymta import Peer, SMTPProcessor
+
 
 class MockSession(object):
     primary_hostname = 'localhost'
@@ -27,10 +28,10 @@ class MockSession(object):
 class MockServer(object):
     def __init__(self):
         self.messages = []
-
     
     def new_message_received(self, msg):
         self.messages.append(msg)
+
 
 
 class BasicMessageSendingTest(TestCase):
@@ -102,14 +103,12 @@ class BasicMessageSendingTest(TestCase):
         
         self.assertEqual(1, len(self.server.messages))
         msg = self.server.messages[0]
+        self.assertEqual('127.0.0.1', msg.peer.remote_ip)
+        self.assertEqual(4567, msg.peer.remote_port)
+        
+        self.assertEqual('foo.example.com', msg.smtp_helo)
         self.assertEqual('foo@example.com', msg.smtp_from)
         self.assertEqual('bar@example.com', msg.smtp_to)
         self.assertEqual(rfc822_msg, msg.msg_data)
-
-        
-        
-        
-        
-
 
 

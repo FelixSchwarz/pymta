@@ -4,7 +4,7 @@ from sets import Set
 
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
-from pymta.model import Message
+from pymta.model import Message, Peer
 
 __all__ = ['SMTPProcessor']
 
@@ -21,8 +21,6 @@ class SMTPProcessor(object):
         self._command_arguments = None
         self._message = None
         
-        self.remote_ip_string = None
-        self.remote_port = None
         self._build_state_machine()
         
     
@@ -82,9 +80,8 @@ class SMTPProcessor(object):
         """This method is called when a new SMTP session is opened.
         [PUBLIC API]
         """
-        self.remote_ip_string = remote_ip
-        self.remote_port = remote_port
         self._state = 'new'
+        self._message = Message(Peer(remote_ip, remote_port))
         
         if (self._policy != None) and \
             (not self._policy.accept_new_connection(self.remote_ip_string, self.remote_port)):
@@ -135,9 +132,8 @@ class SMTPProcessor(object):
         """This method handles not a real smtp command. It is called when a new
         connection was accepted by the server."""
         primary_hostname = self._session.primary_hostname
-        reply_text = '%s Hello %s' % (primary_hostname, self.remote_ip_string)
+        reply_text = '%s Hello %s' % (primary_hostname, self._message.peer.remote_ip)
         self.reply(220, reply_text)
-        self._message = Message(None)
     
     def smtp_quit(self):
         primary_hostname = self._session.primary_hostname
@@ -150,7 +146,7 @@ class SMTPProcessor(object):
     
     def smtp_helo(self):
         helo_string = self._command_arguments
-        # We could store the helo string for a later check
+        self._message.smtp_helo = helo_string
         primary_hostname = self._session.primary_hostname
         self.reply(250, primary_hostname)
     
