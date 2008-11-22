@@ -4,6 +4,8 @@ from sets import Set
 
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
+from pymta.model import Message
+
 __all__ = ['SMTPProcessor']
 
 
@@ -17,6 +19,8 @@ class SMTPProcessor(object):
         self._policy = policy
         
         self._command_arguments = None
+        self._message = None
+        
         self.remote_ip_string = None
         self.remote_port = None
         self._build_state_machine()
@@ -133,6 +137,7 @@ class SMTPProcessor(object):
         primary_hostname = self._session.primary_hostname
         reply_text = '%s Hello %s' % (primary_hostname, self.remote_ip_string)
         self.reply(220, reply_text)
+        self._message = Message(None)
     
     def smtp_quit(self):
         primary_hostname = self._session.primary_hostname
@@ -150,17 +155,26 @@ class SMTPProcessor(object):
         self.reply(250, primary_hostname)
     
     def smtp_mail_from(self):
-        raise NotImplementedError
-        self.reply(250, 'NI')
+        # TODO: Check for good email address!
+        # TODO: Check for single email address!
+        # TODO: Policy
+        self._message.smtp_from = self._command_arguments
+        self.reply(250, 'OK')
     
     def smtp_rcpt_to(self):
-        raise NotImplementedError
-        self.reply(250, 'NI')
+        # TODO: Check for good email address!
+        # TODO: Handle multiple arguments
+        # TODO: Policy
+        self._message.smtp_to = self._command_arguments
+        self.reply(250, 'OK')
     
     def smtp_data(self):
-        raise NotImplementedError
-        self.reply(250, 'NI')
-        
-        
+        msg_data = self._command_arguments
+        # TODO: Policy check
+        self._message.msg_data = msg_data
+        self._session.new_message_received(self._message)
+        self._message = None
+        self.reply(250, 'OK')
+        # Now we must not loose the message anymore!
 
 

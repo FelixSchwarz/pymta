@@ -50,7 +50,8 @@ class SMTPSession(asynchat.async_chat):
     # Communication helper methods
     
     def push(self, code, msg=None):
-        "Send a message to the peer (using the correct SMTP line terminators."
+        """Send a message to the peer (using the correct SMTP line terminators
+        (usually only called from the SMTPProcessor)."""
         if msg == None:
             msg = code
         else:
@@ -59,6 +60,12 @@ class SMTPSession(asynchat.async_chat):
         if not msg.endswith(self.LINE_TERMINATOR):
             msg += self.LINE_TERMINATOR
         asynchat.async_chat.push(self, msg)
+    
+    def new_message_received(self, msg):
+        """Called from the SMTPProcessor when a new message was received 
+        successfully."""
+        self._server.new_message_received(msg)
+        
     
     # Implementation of base class abstract method
     # TODO: Rewrite!

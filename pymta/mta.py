@@ -29,6 +29,11 @@ class PythonMTA(SMTPServer):
     primary_hostname = property(primary_hostname)
     
     
+    def new_message_received(self, msg):
+        """Called from the SMTPSession whenever a new message was accepted."""
+        print msg
+        raise NotImplementedError
+    
     # Do something with the gathered message
     # TODO: Rewrite!
     def process_message(self, peer, mailfrom, rcpttos, data):

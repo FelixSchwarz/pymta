@@ -7,7 +7,8 @@ from pymta import SMTPProcessor
 class MockSession(object):
     primary_hostname = 'localhost'
     
-    def __init__(self):
+    def __init__(self, server):
+        self._server = server
         self.replies = []
         self.open = True
     
@@ -18,12 +19,25 @@ class MockSession(object):
         assert self.open
         self.open = False
     
+    def new_message_received(self, msg):
+        self._server.new_message_received(msg)
+    
+
+
+class MockServer(object):
+    def __init__(self):
+        self.messages = []
+
+    
+    def new_message_received(self, msg):
+        self.messages.append(msg)
 
 
 class BasicMessageSendingTest(TestCase):
 
     def setUp(self):
-        self.session = MockSession()
+        self.server = MockServer()
+        self.session = MockSession(self.server)
         self.processor = SMTPProcessor(session=self.session)
         self.processor.new_connection('127.0.0.1', 4567)
     
@@ -80,12 +94,22 @@ class BasicMessageSendingTest(TestCase):
 
     def test_send_simple_mail(self):
         self._send('HELO', 'foo.example.com')
-        self._send('MAIL FROM', 'foo.example.com')
+        self._send('MAIL FROM', 'foo@example.com')
         self._send('RCPT TO', 'bar@example.com')
-        msg = 'Subject: Test\r\n\r\nJust testing...\r\n'
-        self._send('DATA', msg)
+        rfc822_msg = 'Subject: Test\r\n\r\nJust testing...\r\n'
+        self._send('DATA', rfc822_msg)
         self._close_connection()
-        raise NotImplementedError('We have to check the email')
+        
+        self.assertEqual(1, len(self.server.messages))
+        msg = self.server.messages[0]
+        self.assertEqual('foo@example.com', msg.smtp_from)
+        self.assertEqual('bar@example.com', msg.smtp_to)
+        self.assertEqual(rfc822_msg, msg.msg_data)
+
+        
+        
+        
+        
 
 
 
