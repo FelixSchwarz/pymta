@@ -25,7 +25,6 @@
 import asyncore
 import socket
 
-from pymta.smtpd import SMTPServer
 from pymta.command_parser import SMTPCommandParser
 
 __all__ = ['PythonMTA']
@@ -34,10 +33,8 @@ __all__ = ['PythonMTA']
 class PythonMTA(asyncore.dispatcher):
     version='0.1'
 
-    def __init__(self, localaddr, remoteaddr, policy_class):
+    def __init__(self, local_address, bind_port, policy_class):
         asyncore.dispatcher.__init__(self)
-        self._localaddr = localaddr
-        self._remoteaddr = remoteaddr
         self._policy_class = policy_class
         
         self._primary_hostname = socket.getfqdn()
@@ -46,21 +43,18 @@ class PythonMTA(asyncore.dispatcher):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         # try to re-use a server port if possible
         self.set_reuse_addr()
-        self.bind(localaddr)
+        self.bind((local_address, bind_port))
         self.listen(5)        
-    
     
     def handle_accept(self):
         connection, remote_ip_and_port = self.accept()
         remote_ip_string, port = remote_ip_and_port
         policy = self._policy_class()
         SMTPCommandParser(self, connection, remote_ip_and_port, policy)
-
     
     def primary_hostname(self):
         return self._primary_hostname
     primary_hostname = property(primary_hostname)
-    
     
     def new_message_received(self, msg):
         """Called from the SMTPSession whenever a new message was accepted."""
