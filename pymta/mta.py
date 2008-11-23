@@ -60,19 +60,5 @@ class PythonMTA(asyncore.dispatcher):
         """Called from the SMTPSession whenever a new message was accepted."""
         print msg
         raise NotImplementedError
-    
-    # Do something with the gathered message
-    # TODO: Rewrite!
-    def process_message(self, peer, mailfrom, rcpttos, data):
-        inheaders = True
-        lines = data.split('\n')
-        print '---------- MESSAGE FOLLOWS ----------'
-        for line in lines:
-            # headers first
-            if inheaders and not line:
-                print 'X-Peer:', peer[0]
-                inheaders = False
-            print line
-        print '------------ END MESSAGE ------------'
 
 

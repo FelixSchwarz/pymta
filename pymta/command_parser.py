@@ -29,7 +29,7 @@ class SMTPCommandParser(asynchat.async_chat):
         
         self._peer = connection.getpeername()
         
-        self.processor = SMTPProcessor(session=self, policy=policy)
+        self.processor = SMTPSession(command_parser=self, policy=policy)
         remote_ip_string, remote_port = remote_ip_and_port
         self.processor.new_connection(remote_ip_string, remote_port)
         
@@ -135,6 +135,15 @@ class SMTPCommandParser(asynchat.async_chat):
                 # for null address, e.g. <>
                 address = address[1:-1]
         return address
+    
+    
+    def handle_close(self):
+        print 'CLOSE!'
+        asynchat.async_chat.handle_close(self)
+    
+    def close_when_done(self):
+        print 'CLOSE WHEN DONE!'
+        asynchat.async_chat.close_when_done(self)
 
     # -------------------------------------------------------------------------
     # Internal methods for sending data to the client (easy subclassing with
