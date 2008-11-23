@@ -11,10 +11,10 @@ class SMTPCommandParser(asynchat.async_chat):
     as a complete command is received, this class will hand everything over to
     the SMTPSession.
     
-    In the original 'SMTPChannel' class from Python.org this class handled 
-    all communication with asynchat, implemented a extremly simple state machine
-    and processed the data. Implementing hooks in that design (or adding 
-    fine-grained policies) was not possible at all with the previous design."""
+    The original 'SMTPChannel' class from Python.org handled all communication 
+    with asynchat, implemented a extremly simple state machine and processed 
+    the data. Implementing hooks in that design (or adding fine-grained 
+    policies) was not possible at all with the previous design."""
     LINE_TERMINATOR = '\r\n'
 
     def __init__(self, server, connection, remote_ip_and_port, policy):
@@ -102,7 +102,7 @@ class SMTPCommandParser(asynchat.async_chat):
             # Remove extraneous carriage returns and de-transparency according
             # to RFC 821, Section 4.5.2.
             data = []
-            for text in line.split('\r\n'):
+            for text in line.split(self.LINE_TERMINATOR):
                 if text and text[0] == '.':
                     data.append(text[1:])
                 else:
@@ -139,13 +139,6 @@ class SMTPCommandParser(asynchat.async_chat):
     # -------------------------------------------------------------------------
     # Internal methods for sending data to the client (easy subclassing with
     # different behavior)
-
-    def smtp_helo(self):
-        if self.command_arguments in [None, '']:
-            self.push('501 Syntax: HELO hostname')
-        else:
-            self._greeting = self.command_arguments
-            self.push('250 %s' % self._fqdn)        
 
     # -------------------------------------------------------------------------
     # Methods that call policy checks
