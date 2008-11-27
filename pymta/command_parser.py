@@ -2,9 +2,29 @@
 
 import asynchat
 
+from repoze.workflow.statemachine import StateMachine, StateMachineError
+
 from pymta.session import SMTPSession
 
 __all__ = ['SMTPCommandParser']
+
+
+class ParserImplementation(object):
+    """The SMTPCommandParser needs a connected socket to operate. This is very
+    inconvenient for testing therefore all 'interesting' functionality is moved
+    in this class which is easily testable."""
+    
+    def parse(self, command):
+        assert isinstance(command, basestring)
+        parameter = None
+        if ':' in command:
+            command, parameter = command.split(':', 1)
+            parameter = parameter.strip()
+        elif ' ' in command:
+            command, parameter = command.split(' ', 1)
+            parameter = parameter.strip()
+        return command, parameter
+    
 
 class SMTPCommandParser(asynchat.async_chat):
     """This class handles only the actual communication with the client. As soon
@@ -24,11 +44,13 @@ class SMTPCommandParser(asynchat.async_chat):
         self.set_terminator(self.LINE_TERMINATOR)
         
         self._server = server
+        self.data = None
+        self._build_state_machine()
         
         self._connection = connection
-        
         self._peer = connection.getpeername()
-        
+        self._parser = ParserImplementation()
+
         self.processor = SMTPSession(command_parser=self, policy=policy)
         remote_ip_string, remote_port = remote_ip_and_port
         self.processor.new_connection(remote_ip_string, remote_port)
@@ -40,6 +62,23 @@ class SMTPCommandParser(asynchat.async_chat):
         self._rcpttos = []
         self._data = ''
     
+    def _build_state_machine(self):
+        def _command_completed(from_state, to_state, smtp_command, instance):
+            self.data = None
+        
+        def _start_receiving_message(from_state, to_state, smtp_command, instance):
+            self.set_terminator('\r\n.\r\n')
+            self.data = []
+        
+        def _finished_receiving_message(from_state, to_state, smtp_command, instance):
+            self.set_terminator('\r\n')
+            self.data = None
+        
+        self.state = StateMachine('_state', initial_state='commands')
+        self._state = 'commands'
+        self.state.add('commands', 'COMMAND', 'commands', _command_completed)
+        self.state.add('commands', 'DATA',    'data', _start_receiving_message)
+        self.state.add('data',     'COMMAND', 'commands', _finished_receiving_message)
     
     def primary_hostname(self):
         return self._server.primary_hostname
@@ -65,19 +104,37 @@ class SMTPCommandParser(asynchat.async_chat):
         """Called from the SMTPProcessor when a new message was received 
         successfully."""
         self._server.new_message_received(msg)
-        
+    
+    def collect_incoming_data(self, data):
+        if self._state == 'commands':
+            self.data = data
+        elif data != '.':
+            # In DATA mode '.' on a line by itself signals the 'end of message'.
+            # So the dot is only needed in protocol itself but we don't add it 
+            # to our payload.
+            self.data.append(data)
+    
+    def found_terminator(self):
+        input_data = self.data
+        if self._state == 'commands':
+            command, parameter = self._parser.parse(input_data)
+            self.processor.handle_input(command, parameter)
+            if command.upper() == 'DATA':
+                # TODO: check good output of handle_input
+                self.state.execute(self, 'DATA')
+        else:
+            assert isinstance(input_data, list)
+            # TODO: Remove extraneous carriage returns and de-transparency according
+            # to RFC 821, Section 4.5.2.
+            parameter = '\n'.join(input_data)
+            self.processor.handle_input('MSGDATA', parameter)
+            self.state.execute(self, 'COMMAND')
+            self.set_terminator('\r\n')
     
     # Implementation of base class abstract method
     # TODO: Rewrite!
-    def collect_incoming_data(self, data):
-        print 'collect_incoming_data', data
-        self._line.append(data)
-
-    # Implementation of base class abstract method
-    # TODO: Rewrite!
-    def found_terminator(self):
+    def __found_terminator(self):
         line = ''.join(self._line)
-        print 'Data:', repr(line)
         self._line = []
         if self._old_state == self.COMMAND:
             if not line:
@@ -91,7 +148,6 @@ class SMTPCommandParser(asynchat.async_chat):
             else:
                 command = line[:i]
                 arg = line[i+1:].strip()
-            print 'command is ', command
             
             self.processor.handle_input(command, arg)
             return

@@ -91,8 +91,8 @@ class SMTPSession(object):
         self._add_state('greeted', 'HELO',  'identify')
         self._add_state('identify', 'MAIL FROM',  'sender_known')
         self._add_state('sender_known', 'RCPT TO',  'recipient_known')
-        self._add_state('recipient_known', 'DATA',  'identify')
-        # How to add commands?
+        self._add_state('recipient_known', 'DATA',  'receiving_message')
+        self._add_state('receiving_message', 'MSGDATA',  'identify')
         self._add_noop_and_quit_transitions()
         self.valid_commands = [command for from_state, command in self.state.states]
     
@@ -215,6 +215,13 @@ class SMTPSession(object):
         self.reply(250, 'OK')
     
     def smtp_data(self):
+        # TODO: Policy check
+        # TODO: Check no arguments
+        self.reply(354, 'Enter message, ending with "." on a line by itself')
+    
+    def smtp_msgdata(self):
+        """This method handles not a real smtp command. It is called when the
+        whole message was received (multi-line DATA command is completed)."""
         msg_data = self._command_arguments
         # TODO: Policy check
         self._message.msg_data = msg_data
@@ -222,5 +229,5 @@ class SMTPSession(object):
         self._message = None
         self.reply(250, 'OK')
         # Now we must not loose the message anymore!
-
+    
 

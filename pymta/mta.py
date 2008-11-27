@@ -39,6 +39,7 @@ class PythonMTA(asyncore.dispatcher):
         
         self._primary_hostname = socket.getfqdn()
         
+        # --------------------------
         # Copied from Python's smtpd
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         # try to re-use a server port if possible

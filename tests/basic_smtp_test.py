@@ -44,7 +44,7 @@ class SMTPMailsink(threading.Thread):
     def __init__(self, host='localhost', port=25, *args, **kw):
         threading.Thread.__init__(self)
         self.stop_event = threading.Event()
-        self.server = PythonMTA(host, port, *args, **kw)
+        self.server = DebuggingMTA(host, port, *args, **kw)
 
     def run(self):
         "Just run in a loop until stop() is called."
@@ -79,8 +79,9 @@ class BasicSMTPTest(TestCase):
     def setUp(self):
         self.sink = SMTPMailsink(port=8025, policy_class=DefaultMTAPolicy)
         self.sink.start()
-        self.connection = smtplib.SMTP('localhost', 8025)
+        self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
+        self.connection.connect('localhost', 8025)
     
     def tearDown(self):
         self.connection.quit()
@@ -90,7 +91,17 @@ class BasicSMTPTest(TestCase):
         code, replytext = self.connection.helo('foo')
         self.assertEqual(250, code)
         
-        # Send message
+    def test_send_simple_email(self):
+        code, replytext = self.connection.helo('foo')
+        self.assertEqual(250, code)
+        code, replytext = self.connection.mail('from@example.com')
+        self.assertEqual(250, code)
+        code, replytext = self.connection.rcpt('from@example.com')
+        self.assertEqual(250, code)
+        rfc822_msg = 'Subject: Test\r\n\r\nJust testing...\r\n'
+        code, replytext = self.connection.data(rfc822_msg)
+        self.assertEqual(250, code)
+        
         # Retrieve message
         # TODO: graceful exit of server when all threads are gone!
 

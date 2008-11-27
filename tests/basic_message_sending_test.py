@@ -64,20 +64,18 @@ class BasicMessageSendingTest(TestCase):
         self.session = SMTPSession(command_parser=self.command_parser)
         self.session.new_connection('127.0.0.1', 4567)
     
-    def _check_reply_code(self, code, reply_text, expect_failure=False):
+    def _check_reply_code(self, code, reply_text, expected_first_digit):
         first_code_digit = int(str(code)[0])
         smtp_reply = "%s %s" % (code, reply_text)
-        if not expect_failure:
-            self.assertEqual(2, first_code_digit, smtp_reply)
-        else:
-            self.assertNotEqual(2, first_code_digit, smtp_reply)
+        if expected_first_digit != None:
+            self.assertEqual(expected_first_digit, first_code_digit, smtp_reply)
     
-    def _send(self, command, data=None, expect_failure=False):
+    def _send(self, command, data=None, expected_first_digit=2):
         number_replies_before = len(self.command_parser.replies)
         self.session.handle_input(command, data)
         self.assertEqual(number_replies_before + 1, len(self.command_parser.replies))
         code, reply_text = self.command_parser.replies[-1]
-        self._check_reply_code(code, reply_text, expect_failure=expect_failure)
+        self._check_reply_code(code, reply_text, expected_first_digit=expected_first_digit)
         return (code, reply_text)
     
     def _close_connection(self):
@@ -109,20 +107,20 @@ class BasicMessageSendingTest(TestCase):
     def test_reject_duplicated_helo(self):
         self._send('helo', 'foo.example.com')
         code, reply_text = self._send('helo', 'foo.example.com', 
-                                      expect_failure=True)
+                                      expected_first_digit=5)
         self.assertEqual(503, code)
         expected_message = 'Command "helo" is not allowed here'
         self.assertTrue(reply_text.startswith(expected_message), reply_text)
         self._close_connection()
     
     def test_helo_without_hostname_is_rejected(self):
-        self._send('helo', expect_failure=True)
+        self._send('helo', expected_first_digit=5)
         # But we must be able to send the right command here (state machine must
         # not change)
         self._send('helo', 'foo')
     
     def test_helo_with_invalid_arguments_is_rejected(self):
-        expect_invalid = lambda data: self.assertEqual(501, self._send('helo', data, expect_failure=True)[0])
+        expect_invalid = lambda data: self.assertEqual(501, self._send('helo', data, expected_first_digit=5)[0])
         expect_invalid('')
         expect_invalid('  ')
         expect_invalid(None)
@@ -142,7 +140,8 @@ class BasicMessageSendingTest(TestCase):
         self._send('MAIL FROM', 'foo@example.com')
         self._send('RCPT TO', 'bar@example.com')
         rfc822_msg = 'Subject: Test\r\n\r\nJust testing...\r\n'
-        self._send('DATA', rfc822_msg)
+        self._send('DATA', expected_first_digit=3)
+        self._send('MSGDATA', rfc822_msg)
         self._close_connection()
         
         self.assertEqual(1, len(self.server.messages))
