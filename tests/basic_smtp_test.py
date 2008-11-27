@@ -22,70 +22,36 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import asyncore
-import select
 import smtplib
-import threading
 from unittest import TestCase
 
-from pymta import DefaultMTAPolicy, PythonMTA
+from pymta import DefaultMTAPolicy, MTAThread, PythonMTA
 
 
 class DebuggingMTA(PythonMTA):
     def new_message_received(self, msg):
         """Called from the SMTPSession whenever a new message was accepted."""
-        print msg    
-
-
-class SMTPMailsink(threading.Thread):
-    """This class is responsible for controlling the actual mailsink server
-    class."""
-
-    def __init__(self, host='localhost', port=25, *args, **kw):
-        threading.Thread.__init__(self)
-        self.stop_event = threading.Event()
-        self.server = DebuggingMTA(host, port, *args, **kw)
-
-    def run(self):
-        "Just run in a loop until stop() is called."
-        while not self.stop_event.isSet():
-            try:
-                asyncore.loop(timeout=0.1)
-            except select.error, e:
-                if e.args[0] != errno.EBADF:
-                    raise
-
-    def stop(self, timeout_seconds=5.0):
-        """Stop the mailsink and shut down this thread. timeout_seconds
-        specifies how long the caller should wait for the mailsink server to
-        close down (default: 5 seconds). If the server did not stop in time, a
-        warning message is printed."""
-        self.stop_event.set()
-        self.server.close()
-        threading.Thread.join(self, timeout=timeout_seconds)
-        if self.isAlive():
-            print "WARNING: Thread still alive. Timeout while waiting for " + \
-                      "termination!"
-
-    def get_messages(self):
-        "Return a copy of the internal queue with all received messages."
-        return self.server.get_messages()
-        
+        print msg
 
 
 class BasicSMTPTest(TestCase):
     """This test uses the SMTP protocol to check the whole server."""
 
     def setUp(self):
-        self.sink = SMTPMailsink(port=8025, policy_class=DefaultMTAPolicy)
-        self.sink.start()
+        hostname = 'localhost'
+        smtpd_listen_port = 8025
+        
+        self.mta = DebuggingMTA(hostname, smtpd_listen_port, policy_class=DefaultMTAPolicy)
+        self.mtathread = MTAThread(self.mta)
+        self.mtathread.start()
+        
         self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
-        self.connection.connect('localhost', 8025)
+        self.connection.connect(hostname, smtpd_listen_port)
     
     def tearDown(self):
         self.connection.quit()
-        self.sink.stop()
+        self.mtathread.stop()
     
     def test_helo(self):
         code, replytext = self.connection.helo('foo')
