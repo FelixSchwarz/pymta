@@ -28,7 +28,7 @@ __all__ = ['DefaultMTAPolicy']
 class DefaultMTAPolicy(object):
     """This is the default policy which just accepts everything."""
     
-    def accept_new_connection(self, remote_ip_string, remote_port):
+    def accept_new_connection(self, peer):
         return True
 
 
