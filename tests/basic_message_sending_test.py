@@ -139,7 +139,7 @@ class BasicMessageSendingTest(TestCase):
         self._send('HELO', 'foo.example.com')
         self._send('MAIL FROM', 'foo@example.com')
         self._send('RCPT TO', 'bar@example.com')
-        rfc822_msg = 'Subject: Test\r\n\r\nJust testing...\r\n'
+        rfc822_msg = 'Subject: Test\n\nJust testing...\n'
         self._send('DATA', expected_first_digit=3)
         self._send('MSGDATA', rfc822_msg)
         self._close_connection()

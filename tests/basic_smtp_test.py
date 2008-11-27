@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from Queue import Queue
 import smtplib
 from unittest import TestCase
 
@@ -29,9 +30,13 @@ from pymta import DefaultMTAPolicy, MTAThread, PythonMTA
 
 
 class DebuggingMTA(PythonMTA):
+    def __init__(self, *args, **kwargs):
+        PythonMTA.__init__(self, *args, **kwargs)
+        self.queue = Queue()
+
     def new_message_received(self, msg):
         """Called from the SMTPSession whenever a new message was accepted."""
-        print msg
+        self.queue.put(msg)
 
 
 class BasicSMTPTest(TestCase):
@@ -42,33 +47,42 @@ class BasicSMTPTest(TestCase):
         smtpd_listen_port = 8025
         
         self.mta = DebuggingMTA(hostname, smtpd_listen_port, policy_class=DefaultMTAPolicy)
-        self.mtathread = MTAThread(self.mta)
-        self.mtathread.start()
+        self.mta_thread = MTAThread(self.mta)
+        self.mta_thread.start()
         
         self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
         self.connection.connect(hostname, smtpd_listen_port)
     
     def tearDown(self):
-        self.connection.quit()
-        self.mtathread.stop()
+        try:
+            self.connection.quit()
+        except smtplib.SMTPServerDisconnected:
+            pass
+        self.mta_thread.stop()
     
     def test_helo(self):
         code, replytext = self.connection.helo('foo')
         self.assertEqual(250, code)
-        
+    
     def test_send_simple_email(self):
         code, replytext = self.connection.helo('foo')
         self.assertEqual(250, code)
         code, replytext = self.connection.mail('from@example.com')
         self.assertEqual(250, code)
-        code, replytext = self.connection.rcpt('from@example.com')
+        code, replytext = self.connection.rcpt('to@example.com')
         self.assertEqual(250, code)
-        rfc822_msg = 'Subject: Test\r\n\r\nJust testing...\r\n'
+        rfc822_msg = 'Subject: Test\n\nJust testing...'
         code, replytext = self.connection.data(rfc822_msg)
         self.assertEqual(250, code)
+        self.connection.quit()
         
-        # Retrieve message
-        # TODO: graceful exit of server when all threads are gone!
-
+        queue = self.mta.queue
+        self.assertEqual(1, queue.qsize())
+        msg = queue.get()
+        self.assertEqual('foo', msg.smtp_helo)
+        self.assertEqual('<from@example.com>', msg.smtp_from)
+        self.assertEqual('<to@example.com>', msg.smtp_to)
+        self.assertEqual(rfc822_msg, msg.msg_data)
+    
 

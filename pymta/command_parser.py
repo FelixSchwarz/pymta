@@ -96,8 +96,8 @@ class SMTPCommandParser(asynchat.async_chat):
         else:
             msg = "%s %s" % (str(code), msg)
         
-        if not msg.endswith(self.LINE_TERMINATOR):
-            msg += self.LINE_TERMINATOR
+        if not msg.endswith('\r\n'):
+            msg += '\r\n'
         asynchat.async_chat.push(self, msg)
     
     def new_message_received(self, msg):
@@ -126,10 +126,12 @@ class SMTPCommandParser(asynchat.async_chat):
             assert isinstance(input_data, list)
             # TODO: Remove extraneous carriage returns and de-transparency according
             # to RFC 821, Section 4.5.2.
-            parameter = '\n'.join(input_data)
+            lines = []
+            for part in input_data:
+                lines.extend(part.split('\r\n'))
+            parameter = '\n'.join(lines)
             self.processor.handle_input('MSGDATA', parameter)
             self.state.execute(self, 'COMMAND')
-            self.set_terminator('\r\n')
     
     # Implementation of base class abstract method
     # TODO: Rewrite!

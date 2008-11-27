@@ -125,7 +125,6 @@ class SMTPSession(object):
         self._state = 'new'
         self._message = Message(Peer(remote_ip, remote_port))
         
-        #TODO:
         if False and (self._policy != None): # and \
 #            (not self._policy.accept_new_connection(self.remote_ip_string, self.remote_port)):
             self.reply(554, 'SMTP service not available')
