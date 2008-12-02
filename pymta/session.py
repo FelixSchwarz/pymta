@@ -37,6 +37,7 @@ __all__ = ['SMTPSession']
 # http://stackoverflow.com/questions/106179/regular-expression-to-match-hostname-or-ip-address#106223
 regex_string = r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
 
+
 class PyMTAException(Exception):
     pass
 
@@ -257,24 +258,32 @@ class SMTPSession(object):
     def smtp_rcpt_to(self):
         # TODO: Check for good email address!
         # TODO: Handle multiple arguments
-        # TODO: Policy
         self._message.smtp_to = self._command_arguments
-        self.reply(250, 'OK')
+        decision, response_sent = self.is_allowed('accept_rcpt_to', self._message)
+        if decision and not response_sent:
+            self.reply(250, 'OK')
+        elif not decision:
+            raise PolicyDenial(response_sent, 550, 'relay not permitted')
     
     def smtp_data(self):
-        # TODO: Policy check
         # TODO: Check no arguments
-        self.reply(354, 'Enter message, ending with "." on a line by itself')
+        decision, response_sent = self.is_allowed('accept_data', self._message)
+        if decision and not response_sent:
+            self.reply(354, 'Enter message, ending with "." on a line by itself')
+        elif not decision:
+            raise PolicyDenial(response_sent)
     
     def smtp_msgdata(self):
         """This method handles not a real smtp command. It is called when the
         whole message was received (multi-line DATA command is completed)."""
-        msg_data = self._command_arguments
-        # TODO: Policy check
-        self._message.msg_data = msg_data
-        self._command_parser.new_message_received(self._message)
-        self._message = None
-        self.reply(250, 'OK')
-        # Now we must not loose the message anymore!
+        self._message.msg_data = self._command_arguments
+        decision, response_sent = self.is_allowed('accept_msgdata', self._message)
+        if decision and not response_sent:
+            self._command_parser.new_message_received(self._message)
+            self._message = None
+            self.reply(250, 'OK')
+            # Now we must not loose the message anymore!
+        elif not decision:
+            raise PolicyDenial(response_sent, 550, 'Message content is not acceptable')
     
 

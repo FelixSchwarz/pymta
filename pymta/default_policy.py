@@ -36,6 +36,15 @@ class DefaultMTAPolicy(object):
     
     def accept_from(self, message):
         return True
+    
+    def accept_rcpt_to(self, message):
+        return True
+    
+    def accept_data(self, message):
+        return True
+    
+    def accept_msgdata(self, message):
+        return True
 
 
 

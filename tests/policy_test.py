@@ -64,5 +64,39 @@ class BasicPolicyTest(CommandParserTestCase):
         self.init(policy=FalsePolicy())
         self.send('HELO', 'foo.example.com')
         self.send('MAIL FROM', 'foo@example.com', expected_first_digit=5)
+    
+    
+    def test_rcptto_can_be_rejected(self):
+        class FalsePolicy(DefaultMTAPolicy):
+            def accept_rcpt_to(self, message):
+                return False
+        self.init(policy=FalsePolicy())
+        self.send('HELO', 'foo.example.com')
+        self.send('MAIL FROM', 'foo@example.com')
+        self.send('RCPT TO', 'to@example.com', expected_first_digit=5)
+    
+    
+    def test_data_can_be_rejected(self):
+        class FalsePolicy(DefaultMTAPolicy):
+            def accept_data(self, message):
+                return False
+        self.init(policy=FalsePolicy())
+        self.send('HELO', 'foo.example.com')
+        self.send('MAIL FROM', 'foo@example.com')
+        self.send('RCPT TO', 'to@example.com')
+        self.send('DATA', expected_first_digit=5)
+    
+    
+    def test_messages_can_be_rejected(self):
+        class FalsePolicy(DefaultMTAPolicy):
+            def accept_msgdata(self, message):
+                return False
+        self.init(policy=FalsePolicy())
+        self.send('HELO', 'foo.example.com')
+        self.send('MAIL FROM', 'foo@example.com')
+        self.send('RCPT TO', 'to@example.com')
+        self.send('DATA', expected_first_digit=3)
+        rfc822_msg = 'Subject: Test\n\nJust testing...\n'
+        self.send('MSGDATA', rfc822_msg, expected_first_digit=5)
 
 
