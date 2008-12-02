@@ -85,4 +85,17 @@ class BasicSMTPTest(TestCase):
         self.assertEqual('<to@example.com>', msg.smtp_to)
         self.assertEqual(rfc822_msg, msg.msg_data)
     
+    def test_send_email_via_smtplib(self):
+        """Check that we can send a simple email via smtplib.sendmail without
+        using the low-level api."""
+        rfc822_msg = 'Subject: Test\n\nJust testing...'
+        self.connection.sendmail('from@example.com', 'to@example.com', rfc822_msg)
+        self.connection.quit()
+        
+        queue = self.mta.queue
+        self.assertEqual(1, queue.qsize())
+        msg = queue.get()
+        self.assertEqual('<from@example.com>', msg.smtp_from)
+        self.assertEqual('<to@example.com>', msg.smtp_to)
+        self.assertEqual(rfc822_msg, msg.msg_data)
 
