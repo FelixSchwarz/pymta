@@ -30,6 +30,10 @@ class DefaultMTAPolicy(object):
     
     def accept_new_connection(self, peer):
         return True
+    
+    def accept_helo(self, message):
+        return True
+
 
 
 

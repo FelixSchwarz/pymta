@@ -37,9 +37,17 @@ __all__ = ['SMTPSession']
 # http://stackoverflow.com/questions/106179/regular-expression-to-match-hostname-or-ip-address#106223
 regex_string = r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
 
-
-class InvalidParametersException(Exception):
+class PyMTAException(Exception):
     pass
+
+class InvalidParametersException(PyMTAException):
+    pass
+
+class PolicyDenial(PyMTAException):
+    def __init__(self, response_sent, code=550, reply_text='Administrative Prohibition'):
+        self.response_sent = response_sent
+        self.code = code
+        self.reply_text = reply_text
 
 
 class SMTPSession(object):
@@ -114,7 +122,26 @@ class SMTPSession(object):
             # be moved forward. Instead the handle_input will catch it and send
             # out the appropriate reply.
             handler_method()
-            
+    
+    def _evaluate_decision(self, decision):
+        return (decision in [True, None])
+    
+    def is_allowed(self, acl_name, *args):
+        if self._policy != None:
+            decider = getattr(self._policy, acl_name)
+            result = decider(*args)
+            if result in [True, False, None]:
+                return self._evaluate_decision(result), False
+            elif len(result) == 2:
+                decision = self._evaluate_decision(result[0])
+                code, custom_response = result[1]
+                if not isinstance(custom_response, basestring):
+                    self.reply(code, custom_response)
+                else:
+                    self.multiline_reply(code, custom_response)
+                return decision, True
+            raise ValueError('Unknown policy response')
+        return True, False
     
     # -------------------------------------------------------------------------
     
@@ -125,12 +152,15 @@ class SMTPSession(object):
         self._state = 'new'
         self._message = Message(Peer(remote_ip, remote_port))
         
-        if (self._policy != None) and \
-            (not self._policy.accept_new_connection(self._message.peer)):
-            self.reply(554, 'SMTP service not available')
-            self.close_connection()
+        decision, response_sent = self.is_allowed('accept_new_connection', 
+                                                  self._message.peer)
+        if decision:
+            if not response_sent:
+                self.handle_input('greet')
         else:
-            self.handle_input('greet')
+            if not response_sent:
+                self.reply(554, 'SMTP service not available')
+            self.close_connection()
     
     
     def handle_input(self, smtp_command, data=None):
@@ -153,6 +183,9 @@ class SMTPSession(object):
                 self.reply(503, msg)
         except InvalidParametersException:
             self.reply(501, 'Syntactically invalid %s argument(s)' % smtp_command)
+        except PolicyDenial, e:
+            if not e.response_sent:
+                self.reply(e.code, e.reply_text)
         self._command_arguments = None
     
     
@@ -162,6 +195,12 @@ class SMTPSession(object):
         print 'code, text', code, text
         self._command_parser.push(code, text)
     
+    
+    def multiline_reply(self, code, responses):
+        """This method returns a message with multiple lines to the client 
+        (actually the session object is responsible of actually pushing the 
+        bits)."""
+        self._command_parser.multiline_push(code, responses)
     
     def close_connection(self):
         "Request a connection close from the SMTP session handling instance."
@@ -176,6 +215,8 @@ class SMTPSession(object):
     def smtp_greet(self):
         """This method handles not a real smtp command. It is called when a new
         connection was accepted by the server."""
+        # Policy check was done when accepting the connection so we don't have 
+        # to do it here again.
         primary_hostname = self._command_parser.primary_hostname
         reply_text = '%s Hello %s' % (primary_hostname, self._message.peer.remote_ip)
         self.reply(220, reply_text)
@@ -196,8 +237,12 @@ class SMTPSession(object):
             raise InvalidParametersException(helo_string)
         else:
             self._message.smtp_helo = helo_string
-            primary_hostname = self._command_parser.primary_hostname
-            self.reply(250, primary_hostname)
+            decision, response_sent = self.is_allowed('accept_helo', self._message)
+            if decision and not response_sent:
+                primary_hostname = self._command_parser.primary_hostname
+                self.reply(250, primary_hostname)
+            elif not decision:
+                raise PolicyDenial(response_sent)
     
     def smtp_mail_from(self):
         # TODO: Check for good email address!

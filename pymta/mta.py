@@ -45,7 +45,7 @@ class PythonMTA(asyncore.dispatcher):
         # try to re-use a server port if possible
         self.set_reuse_addr()
         self.bind((local_address, bind_port))
-        self.listen(5)        
+        self.listen(5)
     
     def handle_accept(self):
         connection, remote_ip_and_port = self.accept()
