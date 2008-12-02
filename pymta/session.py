@@ -247,9 +247,12 @@ class SMTPSession(object):
     def smtp_mail_from(self):
         # TODO: Check for good email address!
         # TODO: Check for single email address!
-        # TODO: Policy
         self._message.smtp_from = self._command_arguments
-        self.reply(250, 'OK')
+        decision, response_sent = self.is_allowed('accept_from', self._message)
+        if decision and not response_sent:
+            self.reply(250, 'OK')
+        elif not decision:
+            raise PolicyDenial(response_sent)
     
     def smtp_rcpt_to(self):
         # TODO: Check for good email address!

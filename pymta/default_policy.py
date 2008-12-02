@@ -33,6 +33,9 @@ class DefaultMTAPolicy(object):
     
     def accept_helo(self, message):
         return True
+    
+    def accept_from(self, message):
+        return True
 
 
 

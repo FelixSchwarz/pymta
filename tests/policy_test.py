@@ -55,5 +55,14 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('HELO', 'foo.example.com', expected_first_digit=5)
         self.send('HELO', 'bar.example.com', expected_first_digit=5)
         self.send('HELO', 'localhost')
+    
+    
+    def test_from_can_be_rejected(self):
+        class FalsePolicy(DefaultMTAPolicy):
+            def accept_from(self, message):
+                return False
+        self.init(policy=FalsePolicy())
+        self.send('HELO', 'foo.example.com')
+        self.send('MAIL FROM', 'foo@example.com', expected_first_digit=5)
 
 
