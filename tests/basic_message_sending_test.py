@@ -107,6 +107,13 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.assertEqual(214, code)
         supported_commands = Set(reply_text[1].split(' '))
         expected_commands = Set(['DATA', 'HELO', 'HELP', 'MAIL', 'NOOP', 'QUIT',
-                                 'RCPT'])
+                                 'RCPT', 'RSET'])
         self.assertEqual(expected_commands, supported_commands)
+    
+    def test_support_for_rset(self):
+        self.send('HELO', 'foo.example.com')
+        self.send('MAIL FROM', 'foo@example.com')
+        self.send('RSET')
+        self.send('MAIL FROM', 'bar@example.com')
+
 

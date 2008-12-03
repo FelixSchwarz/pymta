@@ -77,10 +77,28 @@ class SMTPSession(object):
         handler_function = self._dispatch_commands
         self.state.add(from_state, smtp_command, to_state, handler_function)
     
+    def _get_all_real_states(self, including_quit=False):
+        states = Set()
+        for key in self.state.states:
+            command_name = key[1]
+            new_state = self.state.states[key]
+            state_name = new_state[0]
+            if state_name not in ['new']:
+                if including_quit or (state_name != 'finished'):
+                    states.add((command_name, state_name))
+        return states
+    
+    def _add_rset_transitions(self):
+        for command_name, state_name in self._get_all_real_states():
+            if state_name == 'new':
+                print command_name, 'RSET ', state_name
+                self._add_state(state_name, 'RSET',  state_name)
+            else:
+                self._add_state(state_name, 'RSET',  'identify')
     
     def _add_help_noop_and_quit_transitions(self):
-        """HELP, NOOP and QUIT should be possible from everywhere so we need to 
-        add these transitions to all states configured so far."""
+        """HELP, NOOP and QUIT should be possible from everywhere so we 
+        need to add these transitions to all states configured so far."""
         states = Set()
         for key in self.state.states:
             new_state = self.state.states[key]
@@ -104,6 +122,7 @@ class SMTPSession(object):
         self._add_state('recipient_known', 'DATA',  'receiving_message')
         self._add_state('receiving_message', 'MSGDATA',  'identify')
         self._add_help_noop_and_quit_transitions()
+        self._add_rset_transitions()
         self.valid_commands = [command for from_state, command in self.state.states]
     
     
@@ -234,8 +253,7 @@ class SMTPSession(object):
     
     def smtp_help(self):
         states = Set()
-        for key in self.state.states:
-            command_name = key[1]
+        for command_name, invalid in self._get_all_real_states(including_quit=True):
             if command_name not in ['GREET', 'MSGDATA']:
                 command_name = command_name.split(' ')[0]
                 states.add(command_name)
@@ -295,5 +313,10 @@ class SMTPSession(object):
             # Now we must not loose the message anymore!
         elif not decision:
             raise PolicyDenial(response_sent, 550, 'Message content is not acceptable')
+    
+    def smtp_rset(self):
+        self._message = Message(peer=self._message.peer, 
+                                smtp_helo=self._message.smtp_helo)
+        self.reply(250, 'Reset OK')
     
 
