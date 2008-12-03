@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from sets import Set
 from unittest import TestCase
 
 from tests.util import CommandParserTestCase
@@ -73,7 +74,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         expect_invalid(None)
         expect_invalid('foo bar')
         expect_invalid('foo_bar')
-
+    
     def test_invalid_commands_are_recognized(self):
         self.session.handle_input('invalid')
         self.assertEqual(2, len(self.command_parser.replies))
@@ -81,7 +82,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.assertEqual(500, code)
         self.assertEqual('unrecognized command "invalid"', reply_text)
         self.close_connection()
-
+    
     def test_send_simple_mail(self):
         self.send('HELO', 'foo.example.com')
         self.send('MAIL FROM', 'foo@example.com')
@@ -100,5 +101,12 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.assertEqual('foo@example.com', msg.smtp_from)
         self.assertEqual('bar@example.com', msg.smtp_to)
         self.assertEqual(rfc822_msg, msg.msg_data)
-
+    
+    def test_help_is_supported(self):
+        code, reply_text = self.send('HELP')
+        self.assertEqual(214, code)
+        supported_commands = Set(reply_text[1].split(' '))
+        expected_commands = Set(['DATA', 'HELO', 'HELP', 'MAIL', 'NOOP', 'QUIT',
+                                 'RCPT'])
+        self.assertEqual(expected_commands, supported_commands)
 

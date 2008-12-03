@@ -78,9 +78,9 @@ class SMTPSession(object):
         self.state.add(from_state, smtp_command, to_state, handler_function)
     
     
-    def _add_noop_and_quit_transitions(self):
-        """NOOP and QUIT should be possible from everywhere so we need to add 
-        these transitions to all states configured so far."""
+    def _add_help_noop_and_quit_transitions(self):
+        """HELP, NOOP and QUIT should be possible from everywhere so we need to 
+        add these transitions to all states configured so far."""
         states = Set()
         for key in self.state.states:
             new_state = self.state.states[key]
@@ -89,8 +89,9 @@ class SMTPSession(object):
                 states.add(state_name)
         for state in states:
             self._add_state(state, 'NOOP',  state)
+            self._add_state(state, 'HELP',  state)
             self._add_state(state, 'QUIT',  'finished')
-        
+    
     
     def _build_state_machine(self):
         # This will implicitely declare an instance variable '_state' with the
@@ -102,7 +103,7 @@ class SMTPSession(object):
         self._add_state('sender_known', 'RCPT TO',  'recipient_known')
         self._add_state('recipient_known', 'DATA',  'receiving_message')
         self._add_state('receiving_message', 'MSGDATA',  'identify')
-        self._add_noop_and_quit_transitions()
+        self._add_help_noop_and_quit_transitions()
         self.valid_commands = [command for from_state, command in self.state.states]
     
     
@@ -230,6 +231,15 @@ class SMTPSession(object):
     
     def smtp_noop(self):
         self.reply(250, 'OK')
+    
+    def smtp_help(self):
+        states = Set()
+        for key in self.state.states:
+            command_name = key[1]
+            if command_name not in ['GREET', 'MSGDATA']:
+                command_name = command_name.split(' ')[0]
+                states.add(command_name)
+        self.multiline_reply(214, (('Commands supported'), ' '.join(states)))
     
     def smtp_helo(self):
         helo_string = (self._command_arguments or '').strip()
