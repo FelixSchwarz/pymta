@@ -47,6 +47,12 @@ class MockCommandParser(object):
     
     def new_message_received(self, msg):
         self.messages.append(msg)
+    
+    def switch_to_command_mode(self):
+        pass
+    
+    def switch_to_data_mode(self):
+        pass
 
 
 class CommandParserTestCase(TestCase):

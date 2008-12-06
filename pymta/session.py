@@ -310,6 +310,7 @@ class SMTPSession(object):
         # TODO: Check no arguments
         decision, response_sent = self.is_allowed('accept_data', self._message)
         if decision and not response_sent:
+            self._command_parser.switch_to_data_mode()
             self.reply(354, 'Enter message, ending with "." on a line by itself')
         elif not decision:
             raise PolicyDenial(response_sent)
@@ -318,6 +319,7 @@ class SMTPSession(object):
         """This method handles not a real smtp command. It is called when the
         whole message was received (multi-line DATA command is completed)."""
         msg_data = self._command_arguments
+        self._command_parser.switch_to_command_mode()
         decision, response_sent = self.is_allowed('accept_msgdata', msg_data, self._message)
         if decision:
             self._message.msg_data = msg_data

@@ -115,14 +115,21 @@ class SMTPCommandParser(asynchat.async_chat):
             # to our payload.
             self.data.append(data)
     
+    def switch_to_command_mode(self):
+        """Called from the SMTPSession when a message was received and the 
+        client is expected to send single commands again."""
+        self.state.execute(self, 'COMMAND')
+    
+    def switch_to_data_mode(self):
+        """Called from the SMTPSession when the client should start transfering
+        the actual message data."""
+        self.state.execute(self, 'DATA')
+    
     def found_terminator(self):
         input_data = self.data
         if self._state == 'commands':
             command, parameter = self._parser.parse(input_data)
             self.processor.handle_input(command, parameter)
-            if command.upper() == 'DATA':
-                # TODO: check good output of handle_input
-                self.state.execute(self, 'DATA')
         else:
             assert isinstance(input_data, list)
             # TODO: Remove extraneous carriage returns and de-transparency according
@@ -132,8 +139,6 @@ class SMTPCommandParser(asynchat.async_chat):
                 lines.extend(part.split(self.LINE_TERMINATOR))
             parameter = '\n'.join(lines)
             self.processor.handle_input('MSGDATA', parameter)
-            self.state.execute(self, 'COMMAND')
-    
     
     # TODO: Rewrite!
     # factored
