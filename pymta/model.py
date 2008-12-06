@@ -32,6 +32,10 @@ class Message(object):
         self.peer = peer
         self.smtp_helo = None
         self.smtp_from = smtp_from
+        if smtp_to == None:
+            smtp_to = []
+        elif not isinstance(smtp_to, (list, tuple)):
+            smtp_to = [smtp_to]
         self.smtp_to = smtp_to
         self.msg_data = msg_data
 

@@ -68,7 +68,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     def test_rcptto_can_be_rejected(self):
         class FalsePolicy(DefaultMTAPolicy):
-            def accept_rcpt_to(self, message):
+            def accept_rcpt_to(self, new_recipient, message):
                 return False
         self.init(policy=FalsePolicy())
         self.send('HELO', 'foo.example.com')

@@ -133,51 +133,6 @@ class SMTPCommandParser(asynchat.async_chat):
             self.processor.handle_input('MSGDATA', parameter)
             self.state.execute(self, 'COMMAND')
     
-    # Implementation of base class abstract method
-    # TODO: Rewrite!
-    def __found_terminator(self):
-        line = ''.join(self._line)
-        self._line = []
-        if self._old_state == self.COMMAND:
-            if not line:
-                self.push('500 Error: bad syntax')
-                return
-            method = None
-            i = line.find(' ')
-            if i < 0:
-                command = line
-                arg = None
-            else:
-                command = line[:i]
-                arg = line[i+1:].strip()
-            
-            self.processor.handle_input(command, arg)
-            return
-        else:
-            if self._old_state != self.DATA:
-                self.push('451 Internal confusion')
-                return
-            # Remove extraneous carriage returns and de-transparency according
-            # to RFC 821, Section 4.5.2.
-            data = []
-            for text in line.split(self.LINE_TERMINATOR):
-                if text and text[0] == '.':
-                    data.append(text[1:])
-                else:
-                    data.append(text)
-            self._data = '\n'.join(data)
-            status = self._server.process_message(self._peer,
-                                                   self._mailfrom,
-                                                   self._rcpttos,
-                                                   self._data)
-            self._rcpttos = []
-            self._mailfrom = None
-            self._old_state = self.COMMAND
-            self.set_terminator('\r\n')
-            if not status:
-                self.push('250 Ok')
-            else:
-                self.push(status)
     
     # TODO: Rewrite!
     # factored

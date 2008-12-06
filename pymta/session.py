@@ -119,6 +119,8 @@ class SMTPSession(object):
         self._add_state('greeted', 'HELO',  'identify')
         self._add_state('identify', 'MAIL FROM',  'sender_known')
         self._add_state('sender_known', 'RCPT TO',  'recipient_known')
+        # multiple recipients
+        self._add_state('recipient_known', 'RCPT TO',  'recipient_known')
         self._add_state('recipient_known', 'DATA',  'receiving_message')
         self._add_state('receiving_message', 'MSGDATA',  'identify')
         self._add_help_noop_and_quit_transitions()
@@ -283,13 +285,21 @@ class SMTPSession(object):
         elif not decision:
             raise PolicyDenial(response_sent)
     
+    def _extract_email_address(self, parameter):
+        match = re.search('^<?(.*?)>?$', parameter)
+        if match:
+            return match.group(1)
+        raise InvalidParametersException(parameter)
+    
     def smtp_rcpt_to(self):
         # TODO: Check for good email address!
-        # TODO: Handle multiple arguments
-        self._message.smtp_to = self._command_arguments
-        decision, response_sent = self.is_allowed('accept_rcpt_to', self._message)
-        if decision and not response_sent:
-            self.reply(250, 'OK')
+        
+        email_address = self._extract_email_address(self._command_arguments)
+        decision, response_sent = self.is_allowed('accept_rcpt_to', email_address, self._message)
+        if decision:
+            self._message.smtp_to.append(email_address)
+            if not response_sent:
+                self.reply(250, 'OK')
         elif not decision:
             raise PolicyDenial(response_sent, 550, 'relay not permitted')
     

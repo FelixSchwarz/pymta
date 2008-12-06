@@ -99,7 +99,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         
         self.assertEqual('foo.example.com', msg.smtp_helo)
         self.assertEqual('foo@example.com', msg.smtp_from)
-        self.assertEqual('bar@example.com', msg.smtp_to)
+        self.assertEqual(['bar@example.com'], msg.smtp_to)
         self.assertEqual(rfc822_msg, msg.msg_data)
     
     def test_help_is_supported(self):

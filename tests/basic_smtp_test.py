@@ -29,6 +29,9 @@ from unittest import TestCase
 from pymta import DefaultMTAPolicy, MTAThread, PythonMTA
 
 
+rfc822_msg = 'Subject: Test\n\nJust testing...'
+
+
 class DebuggingMTA(PythonMTA):
     def __init__(self, *args, **kwargs):
         PythonMTA.__init__(self, *args, **kwargs)
@@ -72,7 +75,6 @@ class BasicSMTPTest(TestCase):
         self.assertEqual(250, code)
         code, replytext = self.connection.rcpt('to@example.com')
         self.assertEqual(250, code)
-        rfc822_msg = 'Subject: Test\n\nJust testing...'
         code, replytext = self.connection.data(rfc822_msg)
         self.assertEqual(250, code)
         self.connection.quit()
@@ -82,13 +84,12 @@ class BasicSMTPTest(TestCase):
         msg = queue.get()
         self.assertEqual('foo', msg.smtp_helo)
         self.assertEqual('<from@example.com>', msg.smtp_from)
-        self.assertEqual('<to@example.com>', msg.smtp_to)
+        self.assertEqual(['to@example.com'], msg.smtp_to)
         self.assertEqual(rfc822_msg, msg.msg_data)
     
     def test_send_email_via_smtplib(self):
         """Check that we can send a simple email via smtplib.sendmail without
         using the low-level api."""
-        rfc822_msg = 'Subject: Test\n\nJust testing...'
         self.connection.sendmail('from@example.com', 'to@example.com', rfc822_msg)
         self.connection.quit()
         
@@ -96,6 +97,19 @@ class BasicSMTPTest(TestCase):
         self.assertEqual(1, queue.qsize())
         msg = queue.get()
         self.assertEqual('<from@example.com>', msg.smtp_from)
-        self.assertEqual('<to@example.com>', msg.smtp_to)
+        self.assertEqual(['to@example.com'], msg.smtp_to)
+        self.assertEqual(rfc822_msg, msg.msg_data)
+    
+    def test_multiple_recipients(self):
+        """Check that we can send an email to multiple recipients at once."""
+        recipients = ['foo@example.com', 'bar@example.com']
+        self.connection.sendmail('from@example.com>', recipients, rfc822_msg)
+        self.connection.quit()
+        
+        queue = self.mta.queue
+        self.assertEqual(1, queue.qsize())
+        msg = queue.get()
+        self.assertEqual('<from@example.com>', msg.smtp_from)
+        self.assertEqual(recipients, msg.smtp_to)
         self.assertEqual(rfc822_msg, msg.msg_data)
 
