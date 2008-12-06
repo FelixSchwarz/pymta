@@ -35,6 +35,7 @@ class SMTPCommandParser(asynchat.async_chat):
     with asynchat, implemented a extremly simple state machine and processed 
     the data. Implementing hooks in that design (or adding fine-grained 
     policies) was not possible at all with the previous design."""
+    
     LINE_TERMINATOR = '\r\n'
 
     def __init__(self, server, connection, remote_ip_and_port, policy):
@@ -67,11 +68,11 @@ class SMTPCommandParser(asynchat.async_chat):
             self.data = None
         
         def _start_receiving_message(from_state, to_state, smtp_command, instance):
-            self.set_terminator('\r\n.\r\n')
+            self.set_terminator('%s.%s' % (self.LINE_TERMINATOR, self.LINE_TERMINATOR))
             self.data = []
         
         def _finished_receiving_message(from_state, to_state, smtp_command, instance):
-            self.set_terminator('\r\n')
+            self.set_terminator(self.LINE_TERMINATOR)
             self.data = None
         
         self.state = StateMachine('_state', initial_state='commands')
@@ -96,8 +97,8 @@ class SMTPCommandParser(asynchat.async_chat):
         else:
             msg = "%s %s" % (str(code), msg)
         
-        if not msg.endswith('\r\n'):
-            msg += '\r\n'
+        if not msg.endswith(self.LINE_TERMINATOR):
+            msg += self.LINE_TERMINATOR
         asynchat.async_chat.push(self, msg)
     
     def new_message_received(self, msg):
@@ -128,7 +129,7 @@ class SMTPCommandParser(asynchat.async_chat):
             # to RFC 821, Section 4.5.2.
             lines = []
             for part in input_data:
-                lines.extend(part.split('\r\n'))
+                lines.extend(part.split(self.LINE_TERMINATOR))
             parameter = '\n'.join(lines)
             self.processor.handle_input('MSGDATA', parameter)
             self.state.execute(self, 'COMMAND')
@@ -159,37 +160,7 @@ class SMTPCommandParser(asynchat.async_chat):
         asynchat.async_chat.close_when_done(self)
 
     # -------------------------------------------------------------------------
-    # Internal methods for sending data to the client (easy subclassing with
-    # different behavior)
 
-    # -------------------------------------------------------------------------
-    # Methods that call policy checks
-
-    def smtp_MAIL(self, arg):
-        print '===> MAIL', arg
-        address = self.__getaddr('FROM:', arg)
-        if not address:
-            self.push('501 Syntax: MAIL FROM:<address>')
-            return
-        if self._mailfrom:
-            self.push('503 Error: nested MAIL command')
-            return
-        self._mailfrom = address
-        print 'sender:', self._mailfrom
-        self.push('250 Ok')
-
-    def smtp_RCPT(self, arg):
-        print '===> RCPT', arg
-        if not self._mailfrom:
-            self.push('503 Error: need MAIL command')
-            return
-        address = self.__getaddr('TO:', arg)
-        if not address:
-            self.push('501 Syntax: RCPT TO: <address>')
-            return
-        self._rcpttos.append(address)
-        print 'recips:', self._rcpttos
-        self.push('250 Ok')
 
     def smtp_RSET(self, arg):
         if arg:
@@ -201,16 +172,4 @@ class SMTPCommandParser(asynchat.async_chat):
         self._data = ''
         self._old_state = self.COMMAND
         self.push('250 Ok')
-
-    def smtp_DATA(self, arg):
-        if not self._rcpttos:
-            self.push('503 Error: need RCPT command')
-            return
-        if arg:
-            self.push('501 Syntax: DATA')
-            return
-        self._old_state = self.DATA
-        self.set_terminator('\r\n.\r\n')
-        self.push('354 End data with <CR><LF>.<CR><LF>')
-
 
