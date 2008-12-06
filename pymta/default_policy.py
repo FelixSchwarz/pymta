@@ -31,10 +31,10 @@ class DefaultMTAPolicy(object):
     def accept_new_connection(self, peer):
         return True
     
-    def accept_helo(self, message):
+    def accept_helo(self, help_string, message):
         return True
     
-    def accept_from(self, message):
+    def accept_from(self, sender, message):
         return True
     
     def accept_rcpt_to(self, new_recipient, message):
@@ -43,7 +43,7 @@ class DefaultMTAPolicy(object):
     def accept_data(self, message):
         return True
     
-    def accept_msgdata(self, message):
+    def accept_msgdata(self, msgdata, message):
         return True
 
 

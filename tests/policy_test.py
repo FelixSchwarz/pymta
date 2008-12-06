@@ -49,8 +49,8 @@ class BasicPolicyTest(CommandParserTestCase):
     
     def test_helo_can_be_rejected(self):
         class FalsePolicy(DefaultMTAPolicy):
-            def accept_helo(self, message):
-                return (not message.smtp_helo.endswith('example.com'))
+            def accept_helo(self, helo_string, message):
+                return (not helo_string.endswith('example.com'))
         self.init(policy=FalsePolicy())
         self.send('HELO', 'foo.example.com', expected_first_digit=5)
         self.send('HELO', 'bar.example.com', expected_first_digit=5)
@@ -59,7 +59,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     def test_from_can_be_rejected(self):
         class FalsePolicy(DefaultMTAPolicy):
-            def accept_from(self, message):
+            def accept_from(self, sender, message):
                 return False
         self.init(policy=FalsePolicy())
         self.send('HELO', 'foo.example.com')
@@ -89,7 +89,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     def test_messages_can_be_rejected(self):
         class FalsePolicy(DefaultMTAPolicy):
-            def accept_msgdata(self, message):
+            def accept_msgdata(self, msg_data, message):
                 return False
         self.init(policy=FalsePolicy())
         self.send('HELO', 'foo.example.com')

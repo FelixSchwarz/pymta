@@ -267,21 +267,24 @@ class SMTPSession(object):
         if not valid_hostname_syntax:
             raise InvalidParametersException(helo_string)
         else:
-            self._message.smtp_helo = helo_string
-            decision, response_sent = self.is_allowed('accept_helo', self._message)
-            if decision and not response_sent:
-                primary_hostname = self._command_parser.primary_hostname
-                self.reply(250, primary_hostname)
+            decision, response_sent = self.is_allowed('accept_helo', helo_string, self._message)
+            if decision:
+                self._message.smtp_helo = helo_string
+                if not response_sent:
+                    primary_hostname = self._command_parser.primary_hostname
+                    self.reply(250, primary_hostname)
             elif not decision:
                 raise PolicyDenial(response_sent)
     
     def smtp_mail_from(self):
+        sender = self._command_arguments
         # TODO: Check for good email address!
         # TODO: Check for single email address!
-        self._message.smtp_from = self._command_arguments
-        decision, response_sent = self.is_allowed('accept_from', self._message)
-        if decision and not response_sent:
-            self.reply(250, 'OK')
+        decision, response_sent = self.is_allowed('accept_from', sender, self._message)
+        if decision:
+            self._message.smtp_from = sender
+            if not response_sent:
+                self.reply(250, 'OK')
         elif not decision:
             raise PolicyDenial(response_sent)
     
@@ -314,13 +317,15 @@ class SMTPSession(object):
     def smtp_msgdata(self):
         """This method handles not a real smtp command. It is called when the
         whole message was received (multi-line DATA command is completed)."""
-        self._message.msg_data = self._command_arguments
-        decision, response_sent = self.is_allowed('accept_msgdata', self._message)
-        if decision and not response_sent:
+        msg_data = self._command_arguments
+        decision, response_sent = self.is_allowed('accept_msgdata', msg_data, self._message)
+        if decision:
+            self._message.msg_data = msg_data
             self._command_parser.new_message_received(self._message)
             self._message = None
-            self.reply(250, 'OK')
-            # Now we must not loose the message anymore!
+            if not response_sent:
+                self.reply(250, 'OK')
+                # Now we must not loose the message anymore!
         elif not decision:
             raise PolicyDenial(response_sent, 550, 'Message content is not acceptable')
     
