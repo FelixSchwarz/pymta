@@ -106,8 +106,8 @@ class BasicMessageSendingTest(CommandParserTestCase):
         code, reply_text = self.send('HELP')
         self.assertEqual(214, code)
         supported_commands = Set(reply_text[1].split(' '))
-        expected_commands = Set(['DATA', 'HELO', 'HELP', 'MAIL', 'NOOP', 'QUIT',
-                                 'RCPT', 'RSET'])
+        expected_commands = Set(['DATA', 'EHLO', 'HELO', 'HELP', 'MAIL', 'NOOP',
+                                 'QUIT', 'RCPT', 'RSET'])
         self.assertEqual(expected_commands, supported_commands)
     
     def test_support_for_rset(self):
@@ -115,5 +115,24 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('MAIL FROM', 'foo@example.com')
         self.send('RSET')
         self.send('MAIL FROM', 'bar@example.com')
+    
+    def test_send_ehlo(self):
+        self.send('ehlo', 'foo.example.com')
+        self.assertEqual(2, len(self.command_parser.replies))
+        code, reply_text = self.command_parser.replies[-1]
+        self.assertEqual(250, code)
+        self.assertEqual('localhost', reply_text)
+
+    def test_ehlo_without_hostname_is_rejected(self):
+        self.send('ehlo', expected_first_digit=5)
+    
+    def test_ehlo_with_invalid_arguments_is_rejected(self):
+        expect_invalid = lambda data: self.assertEqual(501, self.send('ehlo', data, expected_first_digit=5)[0])
+        expect_invalid('')
+        expect_invalid('  ')
+        expect_invalid(None)
+        expect_invalid('foo bar')
+        expect_invalid('foo_bar')
+    
 
 

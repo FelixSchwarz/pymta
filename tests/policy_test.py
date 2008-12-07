@@ -57,6 +57,15 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('HELO', 'localhost')
     
     
+    def test_ehlo_can_be_rejected(self):
+        class FalsePolicy(DefaultMTAPolicy):
+            def accept_ehlo(self, ehlo_string, message):
+                return (not ehlo_string.endswith('example.com'))
+        self.init(policy=FalsePolicy())
+        self.send('EHLO', 'foo.example.com', expected_first_digit=5)
+        self.send('EHLO', 'localhost')
+    
+    
     def test_from_can_be_rejected(self):
         class FalsePolicy(DefaultMTAPolicy):
             def accept_from(self, sender, message):

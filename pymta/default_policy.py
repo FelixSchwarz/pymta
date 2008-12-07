@@ -31,7 +31,10 @@ class DefaultMTAPolicy(object):
     def accept_new_connection(self, peer):
         return True
     
-    def accept_helo(self, help_string, message):
+    def accept_helo(self, helo_string, message):
+        return True
+    
+    def accept_ehlo(self, helo_string, message):
         return True
     
     def accept_from(self, sender, message):

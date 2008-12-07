@@ -91,7 +91,6 @@ class SMTPSession(object):
     def _add_rset_transitions(self):
         for command_name, state_name in self._get_all_real_states():
             if state_name == 'new':
-                print command_name, 'RSET ', state_name
                 self._add_state(state_name, 'RSET',  state_name)
             else:
                 self._add_state(state_name, 'RSET',  'identify')
@@ -117,6 +116,7 @@ class SMTPSession(object):
         self.state = StateMachine('_state', initial_state='new')
         self._add_state('new',     'GREET', 'greeted')
         self._add_state('greeted', 'HELO',  'identify')
+        self._add_state('greeted', 'EHLO',  'identify')
         self._add_state('identify', 'MAIL FROM',  'sender_known')
         self._add_state('sender_known', 'RCPT TO',  'recipient_known')
         # multiple recipients
@@ -261,20 +261,29 @@ class SMTPSession(object):
                 states.add(command_name)
         self.multiline_reply(214, (('Commands supported'), ' '.join(states)))
     
-    def smtp_helo(self):
+    def _reply_to_helo(self, helo_string, response_sent):
+        self._message.smtp_helo = helo_string
+        if not response_sent:
+            primary_hostname = self._command_parser.primary_hostname
+            self.reply(250, primary_hostname)
+    
+    def _process_helo_or_ehlo(self, policy_methodname, reply_method):
         helo_string = (self._command_arguments or '').strip()
         valid_hostname_syntax = (self.hostname_regex.match(helo_string) != None)
         if not valid_hostname_syntax:
             raise InvalidParametersException(helo_string)
         else:
-            decision, response_sent = self.is_allowed('accept_helo', helo_string, self._message)
+            decision, response_sent = self.is_allowed(policy_methodname, helo_string, self._message)
             if decision:
-                self._message.smtp_helo = helo_string
-                if not response_sent:
-                    primary_hostname = self._command_parser.primary_hostname
-                    self.reply(250, primary_hostname)
+                reply_method(helo_string, response_sent)
             elif not decision:
                 raise PolicyDenial(response_sent)
+    
+    def smtp_helo(self):
+        self._process_helo_or_ehlo('accept_helo', self._reply_to_helo)
+    
+    def smtp_ehlo(self):
+        self._process_helo_or_ehlo('accept_ehlo', self._reply_to_helo)
     
     def smtp_mail_from(self):
         sender = self._command_arguments
