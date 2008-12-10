@@ -1,5 +1,12 @@
 # -*- coding: UTF-8 -*-
-# 
+"""
+This module contains some classes which are probably useful for writing unit
+tests using pymta:
+- MTAThread enables you to run a MTA in a separate thread so that you can test
+  interaction with an in-process MTA.
+- DebuggingMTA provides a very simple MTA which just collects all incoming 
+  messages so that you can examine then afterwards.
+"""
 # The MIT License
 # 
 # Copyright (c) 2008 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
@@ -23,10 +30,24 @@
 # THE SOFTWARE.
 
 import asyncore
+from Queue import Queue
 import select
 import threading
 
-__all__ = ['MTAThread']
+from pymta.mta import PythonMTA
+
+
+__all__ = ['DebuggingMTA', 'MTAThread']
+
+
+class DebuggingMTA(PythonMTA):
+    def __init__(self, *args, **kwargs):
+        PythonMTA.__init__(self, *args, **kwargs)
+        self.queue = Queue()
+
+    def new_message_received(self, msg):
+        """Called from the CommandParser whenever a new message was accepted."""
+        self.queue.put(msg)
 
 
 class MTAThread(threading.Thread):
@@ -59,4 +80,5 @@ class MTAThread(threading.Thread):
         if self.isAlive():
             print "WARNING: Thread still alive. Timeout while waiting for " + \
                       "termination!"
+
 

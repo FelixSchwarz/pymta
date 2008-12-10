@@ -22,27 +22,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from Queue import Queue
 import smtplib
 from unittest import TestCase
 
-from pymta import DefaultMTAPolicy, MTAThread, PythonMTA
+from pymta import DefaultMTAPolicy
+from pymta.test_util import DebuggingMTA, MTAThread
 
 from tests.util import DummyAuthenticator
 
 
 rfc822_msg = 'Subject: Test\n\nJust testing...'
-
-
-class DebuggingMTA(PythonMTA):
-    def __init__(self, *args, **kwargs):
-        PythonMTA.__init__(self, authenticator_class=DummyAuthenticator, *args, 
-                           **kwargs)
-        self.queue = Queue()
-
-    def new_message_received(self, msg):
-        """Called from the SMTPSession whenever a new message was accepted."""
-        self.queue.put(msg)
 
 
 class BasicSMTPTest(TestCase):
@@ -52,7 +41,7 @@ class BasicSMTPTest(TestCase):
         hostname = 'localhost'
         smtpd_listen_port = 8025
         
-        self.mta = DebuggingMTA(hostname, smtpd_listen_port, policy_class=DefaultMTAPolicy)
+        self.mta = DebuggingMTA(hostname, smtpd_listen_port, policy_class=DefaultMTAPolicy, authenticator_class=DummyAuthenticator)
         self.mta_thread = MTAThread(self.mta)
         self.mta_thread.start()
         
