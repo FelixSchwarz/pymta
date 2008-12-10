@@ -22,6 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import base64
+import binascii
 import re
 from sets import Set
 
@@ -39,16 +41,19 @@ regex_string = r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-
 
 
 class PyMTAException(Exception):
-    pass
-
-class InvalidParametersException(PyMTAException):
-    pass
-
-class PolicyDenial(PyMTAException):
-    def __init__(self, response_sent, code=550, reply_text='Administrative Prohibition'):
+    def __init__(self, response_sent=False, code=550, 
+                 reply_text='Administrative Prohibition'):
         self.response_sent = response_sent
         self.code = code
         self.reply_text = reply_text
+
+class InvalidParametersException(PyMTAException):
+    def __init__(self, parameter=None, *args, **kwargs):
+        self.parameter = parameter
+        super(InvalidParametersException, self).__init__(*args, **kwargs)
+
+class PolicyDenial(PyMTAException):
+    pass
 
 
 class SMTPSession(object):
@@ -60,16 +65,16 @@ class SMTPSession(object):
     connection so this class does not have to be thread-safe.
     """
     
-    def __init__(self, command_parser, policy=None):
+    def __init__(self, command_parser, policy=None, authenticator=None):
         self._command_parser = command_parser
         self._policy = policy
+        self._authenticator = authenticator
         
         self._command_arguments = None
         self._message = None
         
         self.hostname_regex = re.compile(regex_string, re.IGNORECASE)
         self._build_state_machine()
-        
     
     # -------------------------------------------------------------------------
     
@@ -88,12 +93,34 @@ class SMTPSession(object):
                     states.add((command_name, state_name))
         return states
     
+    def get_all_allowed_internal_commands(self):
+        """Returns an interable which includes all allowed commands. This does
+        not mean that a specific command from the result is executable right now
+        in this session state (or that it can be executed at all in this 
+        connection).
+        
+        Please note that the returned values are /internal/ commands, not SMTP
+        commands (use get_all_allowed_smtp_commands for that) so there will be
+        'MAIL FROM' instead of 'MAIL'."""
+        states = Set()
+        for command_name, invalid in self._get_all_real_states(including_quit=True):
+            if command_name not in ['GREET', 'MSGDATA']:
+                states.add(command_name)
+        return states
+    
+    def get_all_allowed_smtp_commands(self):
+        states = Set()
+        for command_name in self.get_all_allowed_internal_commands():
+            command_name = command_name.split(' ')[0]
+            states.add(command_name)
+        return states
+    
     def _add_rset_transitions(self):
         for command_name, state_name in self._get_all_real_states():
             if state_name == 'new':
                 self._add_state(state_name, 'RSET',  state_name)
             else:
-                self._add_state(state_name, 'RSET',  'identify')
+                self._add_state(state_name, 'RSET',  'initialized')
     
     def _add_help_noop_and_quit_transitions(self):
         """HELP, NOOP and QUIT should be possible from everywhere so we 
@@ -111,13 +138,16 @@ class SMTPSession(object):
     
     
     def _build_state_machine(self):
-        # This will implicitely declare an instance variable '_state' with the
-        # initial state
         self.state = StateMachine('_state', initial_state='new')
         self._add_state('new',     'GREET', 'greeted')
-        self._add_state('greeted', 'HELO',  'identify')
-        self._add_state('greeted', 'EHLO',  'identify')
-        self._add_state('identify', 'MAIL FROM',  'sender_known')
+        self._add_state('greeted', 'HELO',  'initialized')
+        
+        self._add_state('greeted', 'EHLO',  'esmtp_initialized')
+        self._add_state('esmtp_initialized', 'MAIL FROM',  'sender_known')
+        self._add_state('esmtp_initialized', 'AUTH PLAIN',  'authenticated')
+        self._add_state('authenticated', 'MAIL FROM',  'sender_known')
+        
+        self._add_state('initialized', 'MAIL FROM',  'sender_known')
         self._add_state('sender_known', 'RCPT TO',  'recipient_known')
         # multiple recipients
         self._add_state('recipient_known', 'RCPT TO',  'recipient_known')
@@ -204,9 +234,12 @@ class SMTPSession(object):
                 if len(allowed_transitions) > 0:
                       msg += ', expected on of %s' % allowed_transitions
                 self.reply(503, msg)
-        except InvalidParametersException:
-            self.reply(501, 'Syntactically invalid %s argument(s)' % smtp_command)
+        except InvalidParametersException, e:
+            if not e.response_sent:
+                msg = 'Syntactically invalid %s argument(s)' % smtp_command
+                self.reply(501, msg)
         except PolicyDenial, e:
+            print 'checking for response sent', e.response_sent
             if not e.response_sent:
                 self.reply(e.code, e.reply_text)
         self._command_arguments = None
@@ -254,11 +287,7 @@ class SMTPSession(object):
         self.reply(250, 'OK')
     
     def smtp_help(self):
-        states = Set()
-        for command_name, invalid in self._get_all_real_states(including_quit=True):
-            if command_name not in ['GREET', 'MSGDATA']:
-                command_name = command_name.split(' ')[0]
-                states.add(command_name)
+        states = self.get_all_allowed_smtp_commands()
         self.multiline_reply(214, (('Commands supported'), ' '.join(states)))
     
     def _reply_to_helo(self, helo_string, response_sent):
@@ -282,8 +311,41 @@ class SMTPSession(object):
     def smtp_helo(self):
         self._process_helo_or_ehlo('accept_helo', self._reply_to_helo)
     
+    def _reply_to_ehlo(self, helo_string, response_sent):
+        self._message.smtp_helo = helo_string
+        if not response_sent:
+            primary_hostname = self._command_parser.primary_hostname
+            self.multiline_reply(250, (primary_hostname, 'AUTH PLAIN'))
+    
     def smtp_ehlo(self):
-        self._process_helo_or_ehlo('accept_ehlo', self._reply_to_helo)
+        self._process_helo_or_ehlo('accept_ehlo', self._reply_to_ehlo)
+    
+    def smtp_auth_plain(self):
+        base64_credentials = self._command_arguments
+        try:
+            credentials = base64.decodestring(base64_credentials)
+        except binascii.Error:
+            raise InvalidParametersException(base64_credentials)
+        else:
+            match = re.search('^\x00([^\x00]*)\x00([^\x00]*)$', credentials)
+            if match:
+                username, password = match.group(1), match.group(2)
+                
+                decision, response_sent = self.is_allowed('accept_auth_plain', username, password, self._message)
+                if not decision:
+                    raise PolicyDenial(response_sent)
+                assert response_sent == False
+                if self._authenticator == None:
+                    self.reply(535, 'AUTH not available')
+                    raise InvalidParametersException(response_sent=True)
+                credentials_correct = \
+                    self._authenticator.authenticate(username, password, self._message.peer)
+                if credentials_correct:
+                    self.reply(235, 'Authentication successful')
+                else:
+                    self.reply(535, 'Bad username or password')
+            else:
+                raise InvalidParametersException(credentials)
     
     def smtp_mail_from(self):
         sender = self._command_arguments

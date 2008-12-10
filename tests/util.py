@@ -24,7 +24,7 @@
 
 from unittest import TestCase
 
-from pymta import SMTPSession
+from pymta import SMTPSession, IAuthenticator
 
 
 class MockCommandParser(object):
@@ -55,6 +55,11 @@ class MockCommandParser(object):
         pass
 
 
+class DummyAuthenticator(IAuthenticator):
+    def authenticate(self, username, password, peer):
+        return username == password
+
+
 class CommandParserTestCase(TestCase):
 
     def setUp(self, policy=None):
@@ -64,10 +69,10 @@ class CommandParserTestCase(TestCase):
         if self.command_parser.open:
             self.close_connection()
     
-    def init(self, policy=None):
+    def init(self, policy=None, authenticator=None):
         self.command_parser = MockCommandParser()
         self.session = SMTPSession(command_parser=self.command_parser, 
-                                   policy=policy)
+                                   policy=policy, authenticator=authenticator)
         self.session.new_connection('127.0.0.1', 4567)
         
     def check_reply_code(self, code, reply_text, expected_first_digit):

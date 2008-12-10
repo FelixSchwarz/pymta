@@ -26,7 +26,7 @@ from unittest import TestCase
 
 from pymta import DefaultMTAPolicy
 
-from tests.util import CommandParserTestCase
+from tests.util import CommandParserTestCase, DummyAuthenticator
 
 
 class BasicPolicyTest(CommandParserTestCase):
@@ -64,6 +64,16 @@ class BasicPolicyTest(CommandParserTestCase):
         self.init(policy=FalsePolicy())
         self.send('EHLO', 'foo.example.com', expected_first_digit=5)
         self.send('EHLO', 'localhost')
+    
+    
+    def test_auth_plain_can_be_rejected(self):
+        class FalsePolicy(DefaultMTAPolicy):
+            def accept_auth_plain(self, username, password, message):
+                return False
+        self.init(policy=FalsePolicy(), authenticator=DummyAuthenticator())
+        self.send('EHLO', 'foo.example.com')
+        base64_credentials = u'\x00foo\x00foo'.encode('base64')
+        self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
     
     
     def test_from_can_be_rejected(self):

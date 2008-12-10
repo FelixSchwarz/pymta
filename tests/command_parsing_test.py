@@ -26,13 +26,14 @@ from socket import socket
 from unittest import TestCase
 
 from pymta.command_parser import ParserImplementation
-
+from pymta.session import SMTPSession
 
 
 class CommandParsingTest(TestCase):
 
     def setUp(self):
-        self.parser = ParserImplementation()
+        allowed_commands = SMTPSession(command_parser=None).get_all_allowed_internal_commands()
+        self.parser = ParserImplementation(allowed_commands)
     
     def test_parse_command_without_arguments(self):
         self.assertEqual(('QUIT', None), self.parser.parse('QUIT'))
@@ -40,15 +41,15 @@ class CommandParsingTest(TestCase):
     
     def test_parse_helo(self):
         self.assertEqual(('HELO', 'foo.example.com'), 
-                        self.parser.parse('HELO foo.example.com'))
+                         self.parser.parse('HELO foo.example.com'))
         # This command is syntactically invalid but the validity of specific
         # commands should not be checked in the parser.
         self.assertEqual(('helo', 'foo example.com'), 
-                        self.parser.parse('helo foo example.com'))
+                         self.parser.parse('helo foo example.com'))
     
     def test_strip_parameters(self):
         self.assertEqual(('HELO', 'foo.example.com'), 
-                        self.parser.parse('HELO   foo.example.com   '))
+                         self.parser.parse('HELO   foo.example.com   '))
     
     def test_parse_commands_with_colons(self):
         self.assertEqual(('MAIL FROM', 'foo@example.com'), 
@@ -59,5 +60,9 @@ class CommandParsingTest(TestCase):
                         self.parser.parse('MAIL FROM:  foo@example.com   '))
         self.assertEqual(('RCPT TO', 'foo@example.com, bar@example.com'), 
                         self.parser.parse('RCPT TO:foo@example.com, bar@example.com'))
+    
+    def test_parse_auth_plain(self):
+        self.assertEqual(('AUTH PLAIN', 'AGZvbwBiYXI='), 
+                         self.parser.parse('AUTH PLAIN AGZvbwBiYXI='))
 
 

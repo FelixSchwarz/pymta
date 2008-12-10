@@ -37,6 +37,14 @@ class DefaultMTAPolicy(object):
     def accept_ehlo(self, helo_string, message):
         return True
     
+    def accept_auth_plain(self, username, password, message):
+        """The username and password are not verified by the time this method
+        is called, they were just supplied by the user.
+        
+        The method must not return a response by itself in case it accepts the
+        AUTH PLAIN command!"""
+        return True
+    
     def accept_from(self, sender, message):
         return True
     

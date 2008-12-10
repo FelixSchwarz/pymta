@@ -22,10 +22,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import base64
 from sets import Set
 from unittest import TestCase
 
-from tests.util import CommandParserTestCase
+from pymta import IAuthenticator
+
+from tests.util import CommandParserTestCase, DummyAuthenticator
 
 
 class BasicMessageSendingTest(CommandParserTestCase):
@@ -33,10 +36,14 @@ class BasicMessageSendingTest(CommandParserTestCase):
     def setUp(self):
         super(BasicMessageSendingTest, self).setUp()
     
+    def _check_last_code(self, expected_code):
+        code, reply_text = self.command_parser.replies[-1]
+        self.assertEqual(expected_code, code)
+    
     def test_new_connection(self):
         self.assertEqual(1, len(self.command_parser.replies))
+        self._check_last_code(220)
         code, reply_text = self.command_parser.replies[-1]
-        self.assertEqual(220, code)
         self.assertEqual('localhost Hello 127.0.0.1', reply_text)
         self.close_connection()
     
@@ -47,8 +54,8 @@ class BasicMessageSendingTest(CommandParserTestCase):
     def test_send_helo(self):
         self.send('helo', 'foo.example.com')
         self.assertEqual(2, len(self.command_parser.replies))
+        self._check_last_code(250)
         code, reply_text = self.command_parser.replies[-1]
-        self.assertEqual(250, code)
         self.assertEqual('localhost', reply_text)
         self.close_connection()
 
@@ -78,8 +85,8 @@ class BasicMessageSendingTest(CommandParserTestCase):
     def test_invalid_commands_are_recognized(self):
         self.session.handle_input('invalid')
         self.assertEqual(2, len(self.command_parser.replies))
+        self._check_last_code(500)
         code, reply_text = self.command_parser.replies[-1]
-        self.assertEqual(500, code)
         self.assertEqual('unrecognized command "invalid"', reply_text)
         self.close_connection()
     
@@ -106,8 +113,8 @@ class BasicMessageSendingTest(CommandParserTestCase):
         code, reply_text = self.send('HELP')
         self.assertEqual(214, code)
         supported_commands = Set(reply_text[1].split(' '))
-        expected_commands = Set(['DATA', 'EHLO', 'HELO', 'HELP', 'MAIL', 'NOOP',
-                                 'QUIT', 'RCPT', 'RSET'])
+        expected_commands = Set(['AUTH', 'DATA', 'EHLO', 'HELO', 'HELP', 'MAIL',
+                                 'NOOP', 'QUIT', 'RCPT', 'RSET'])
         self.assertEqual(expected_commands, supported_commands)
     
     def test_support_for_rset(self):
@@ -117,14 +124,14 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('MAIL FROM', 'bar@example.com')
     
     def test_send_ehlo(self):
-        self.send('ehlo', 'foo.example.com')
+        self.send('EHLO', 'foo.example.com')
         self.assertEqual(2, len(self.command_parser.replies))
         code, reply_text = self.command_parser.replies[-1]
         self.assertEqual(250, code)
-        self.assertEqual('localhost', reply_text)
-
+        self.assertEqual(('localhost', 'AUTH PLAIN'), reply_text)
+    
     def test_ehlo_without_hostname_is_rejected(self):
-        self.send('ehlo', expected_first_digit=5)
+        self.send('EHLO', expected_first_digit=5)
     
     def test_ehlo_with_invalid_arguments_is_rejected(self):
         expect_invalid = lambda data: self.assertEqual(501, self.send('ehlo', data, expected_first_digit=5)[0])
@@ -133,6 +140,44 @@ class BasicMessageSendingTest(CommandParserTestCase):
         expect_invalid(None)
         expect_invalid('foo bar')
         expect_invalid('foo_bar')
+    
+    def test_auth_plain_without_authenticator_is_rejected(self):
+        self.send('EHLO', 'foo.example.com')
+        base64_credentials = u'\x00foo\x00foo'.encode('base64')
+        self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
+        self.assertEqual(3, len(self.command_parser.replies))
+        self._check_last_code(535)
+    
+    def test_auth_plain_with_correct_arguments_is_accepted(self):
+        self.session._authenticator = DummyAuthenticator()
+        
+        self.send('EHLO', 'foo.example.com')
+        self.send('AUTH PLAIN', u'\x00foo\x00foo'.encode('base64'))
+        self.assertEqual(3, len(self.command_parser.replies))
+        self._check_last_code(235)
+        code, reply_text = self.command_parser.replies[-1]
+        self.assertEqual('Authentication successful', reply_text)
+    
+    def test_auth_plain_with_bad_credentials_is_accepted(self):
+        self.session._authenticator = DummyAuthenticator()
+        
+        self.send('EHLO', 'foo.example.com')
+        base64_credentials = u'\x00foo\x00bar'.encode('base64')
+        self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
+        self._check_last_code(535)
+    
+    def test_auth_plain_with_bad_base64_is_rejected(self):
+        self.send('EHLO', 'foo.example.com')
+        self.send('AUTH PLAIN', 'foo', expected_first_digit=5)
+        self.assertEqual(3, len(self.command_parser.replies))
+        self._check_last_code(501)
+    
+    def test_auth_plain_with_bad_format_is_rejected(self):
+        self.send('EHLO', 'foo.example.com')
+        base64_credentials = u'\x00foo'.encode('base64')
+        self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
+        self.assertEqual(3, len(self.command_parser.replies))
+        self._check_last_code(501)
     
 
 

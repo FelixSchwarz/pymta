@@ -33,9 +33,10 @@ __all__ = ['PythonMTA']
 class PythonMTA(asyncore.dispatcher):
     version='0.1'
 
-    def __init__(self, local_address, bind_port, policy_class):
+    def __init__(self, local_address, bind_port, policy_class, authenticator_class=None):
         asyncore.dispatcher.__init__(self)
         self._policy_class = policy_class
+        self._authenticator_class = authenticator_class
         
         self._primary_hostname = socket.getfqdn()
         
@@ -51,7 +52,11 @@ class PythonMTA(asyncore.dispatcher):
         connection, remote_ip_and_port = self.accept()
         remote_ip_string, port = remote_ip_and_port
         policy = self._policy_class()
-        SMTPCommandParser(self, connection, remote_ip_and_port, policy)
+        authenticator = None
+        if self._authenticator_class != None:
+            authenticator = self._authenticator_class()
+        SMTPCommandParser(self, connection, remote_ip_and_port, policy, 
+                          authenticator)
     
     def primary_hostname(self):
         return self._primary_hostname

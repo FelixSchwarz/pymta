@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 
 import asynchat
+import re
 
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
@@ -14,15 +15,19 @@ class ParserImplementation(object):
     inconvenient for testing therefore all 'interesting' functionality is moved
     in this class which is easily testable."""
     
+    def __init__(self, allowed_commands):
+        self._allowed_commands = allowed_commands
+        regex_string = '^(%s)(?: |:)\s*(.*)$' % '|'.join(allowed_commands)
+        self.parse_regex = re.compile(regex_string, re.IGNORECASE)
+    
     def parse(self, command):
         assert isinstance(command, basestring)
         parameter = None
-        if ':' in command:
-            command, parameter = command.split(':', 1)
-            parameter = parameter.strip()
-        elif ' ' in command:
-            command, parameter = command.split(' ', 1)
-            parameter = parameter.strip()
+        
+        match = self.parse_regex.search(command)
+        if match != None:
+            command = match.group(1)
+            parameter = match.group(2).strip()
         return command, parameter
     
 
@@ -38,9 +43,8 @@ class SMTPCommandParser(asynchat.async_chat):
     
     LINE_TERMINATOR = '\r\n'
 
-    def __init__(self, server, connection, remote_ip_and_port, policy):
-        self.COMMAND = 0
-        self.DATA = 1
+    def __init__(self, server, connection, remote_ip_and_port, policy, 
+                 authenticator=None):
         asynchat.async_chat.__init__(self, connection)
         self.set_terminator(self.LINE_TERMINATOR)
         
@@ -49,19 +53,13 @@ class SMTPCommandParser(asynchat.async_chat):
         self._build_state_machine()
         
         self._connection = connection
-        self._peer = connection.getpeername()
-        self._parser = ParserImplementation()
 
-        self.processor = SMTPSession(command_parser=self, policy=policy)
+        self.session = SMTPSession(command_parser=self, policy=policy, 
+                                   authenticator=authenticator)
+        allowed_commands = self.session.get_all_allowed_internal_commands()
+        self._parser = ParserImplementation(allowed_commands)
         remote_ip_string, remote_port = remote_ip_and_port
-        self.processor.new_connection(remote_ip_string, remote_port)
-        
-        self._line = []
-        self._old_state = self.COMMAND
-        self._greeting = 0
-        self._mailfrom = None
-        self._rcpttos = []
-        self._data = ''
+        self.session.new_connection(remote_ip_string, remote_port)
     
     def _build_state_machine(self):
         def _command_completed(from_state, to_state, smtp_command, instance):
@@ -89,13 +87,21 @@ class SMTPCommandParser(asynchat.async_chat):
     # -------------------------------------------------------------------------
     # Communication helper methods
     
+    def multiline_push(self, code, lines):
+        """Send a multi-message to the peer (using the correct SMTP line 
+        terminators (usually only called from the SMTPSession)."""
+        for i, line in enumerate(lines[:-1]):
+            answer = '%s-%s' % (str(code), str(line))
+            self.push(answer)
+        self.push(code, lines[-1])
+    
     def push(self, code, msg=None):
         """Send a message to the peer (using the correct SMTP line terminators
-        (usually only called from the SMTPProcessor)."""
+        (usually only called from the SMTPSession)."""
         if msg == None:
             msg = code
         else:
-            msg = "%s %s" % (str(code), msg)
+            msg = '%s %s' % (str(code), msg)
         
         if not msg.endswith(self.LINE_TERMINATOR):
             msg += self.LINE_TERMINATOR
@@ -129,7 +135,7 @@ class SMTPCommandParser(asynchat.async_chat):
         input_data = self.data
         if self._state == 'commands':
             command, parameter = self._parser.parse(input_data)
-            self.processor.handle_input(command, parameter)
+            self.session.handle_input(command, parameter)
         else:
             assert isinstance(input_data, list)
             # TODO: Remove extraneous carriage returns and de-transparency according
@@ -138,23 +144,7 @@ class SMTPCommandParser(asynchat.async_chat):
             for part in input_data:
                 lines.extend(part.split(self.LINE_TERMINATOR))
             parameter = '\n'.join(lines)
-            self.processor.handle_input('MSGDATA', parameter)
-    
-    # TODO: Rewrite!
-    # factored
-    def __getaddr(self, keyword, arg):
-        address = None
-        keylen = len(keyword)
-        if arg[:keylen].upper() == keyword:
-            address = arg[keylen:].strip()
-            if not address:
-                pass
-            elif address[0] == '<' and address[-1] == '>' and address != '<>':
-                # Addresses can be in the form <person@dom.com> but watch out
-                # for null address, e.g. <>
-                address = address[1:-1]
-        return address
-    
+            self.session.handle_input('MSGDATA', parameter)
     
     def handle_close(self):
         print 'CLOSE!'
@@ -164,17 +154,4 @@ class SMTPCommandParser(asynchat.async_chat):
         print 'CLOSE WHEN DONE!'
         asynchat.async_chat.close_when_done(self)
 
-    # -------------------------------------------------------------------------
-
-
-    def smtp_RSET(self, arg):
-        if arg:
-            self.push('501 Syntax: RSET')
-            return
-        # Resets the sender, recipients, and data, but not the greeting
-        self._mailfrom = None
-        self._rcpttos = []
-        self._data = ''
-        self._old_state = self.COMMAND
-        self.push('250 Ok')
 

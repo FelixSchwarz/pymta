@@ -28,13 +28,16 @@ from unittest import TestCase
 
 from pymta import DefaultMTAPolicy, MTAThread, PythonMTA
 
+from tests.util import DummyAuthenticator
+
 
 rfc822_msg = 'Subject: Test\n\nJust testing...'
 
 
 class DebuggingMTA(PythonMTA):
     def __init__(self, *args, **kwargs):
-        PythonMTA.__init__(self, *args, **kwargs)
+        PythonMTA.__init__(self, authenticator_class=DummyAuthenticator, *args, 
+                           **kwargs)
         self.queue = Queue()
 
     def new_message_received(self, msg):
@@ -68,6 +71,16 @@ class BasicSMTPTest(TestCase):
         code, replytext = self.connection.helo('foo')
         self.assertEqual(250, code)
     
+    def _check_received_mail(self, expected_recipients, expected_helo=None):
+        queue = self.mta.queue
+        self.assertEqual(1, queue.qsize())
+        msg = queue.get()
+        if expected_helo != None:
+            self.assertEqual('foo', msg.smtp_helo)
+        self.assertEqual('<from@example.com>', msg.smtp_from)
+        self.assertEqual(expected_recipients, msg.smtp_to)
+        self.assertEqual(rfc822_msg, msg.msg_data)
+    
     def test_send_simple_email(self):
         code, replytext = self.connection.helo('foo')
         self.assertEqual(250, code)
@@ -78,38 +91,29 @@ class BasicSMTPTest(TestCase):
         code, replytext = self.connection.data(rfc822_msg)
         self.assertEqual(250, code)
         self.connection.quit()
-        
-        queue = self.mta.queue
-        self.assertEqual(1, queue.qsize())
-        msg = queue.get()
-        self.assertEqual('foo', msg.smtp_helo)
-        self.assertEqual('<from@example.com>', msg.smtp_from)
-        self.assertEqual(['to@example.com'], msg.smtp_to)
-        self.assertEqual(rfc822_msg, msg.msg_data)
+        self._check_received_mail(['to@example.com'], expected_helo='foo')
     
     def test_send_email_via_smtplib(self):
         """Check that we can send a simple email via smtplib.sendmail without
         using the low-level api."""
-        self.connection.sendmail('from@example.com', 'to@example.com', rfc822_msg)
+        recipient = 'to@example.com'
+        self.connection.sendmail('from@example.com', recipient, rfc822_msg)
         self.connection.quit()
-        
-        queue = self.mta.queue
-        self.assertEqual(1, queue.qsize())
-        msg = queue.get()
-        self.assertEqual('<from@example.com>', msg.smtp_from)
-        self.assertEqual(['to@example.com'], msg.smtp_to)
-        self.assertEqual(rfc822_msg, msg.msg_data)
+        self._check_received_mail([recipient])
     
     def test_multiple_recipients(self):
         """Check that we can send an email to multiple recipients at once."""
         recipients = ['foo@example.com', 'bar@example.com']
         self.connection.sendmail('from@example.com>', recipients, rfc822_msg)
         self.connection.quit()
+        self._check_received_mail(recipients)
+    
+    def test_send_email_with_authentication(self):
+        """Check that we can send an email with prior authentication."""
+        recipient = 'to@example.com'
+        self.connection.login('admin', 'admin')
+        self.connection.sendmail('from@example.com', recipient, rfc822_msg)
+        self.connection.quit()
+        self._check_received_mail([recipient])
         
-        queue = self.mta.queue
-        self.assertEqual(1, queue.qsize())
-        msg = queue.get()
-        self.assertEqual('<from@example.com>', msg.smtp_from)
-        self.assertEqual(recipients, msg.smtp_to)
-        self.assertEqual(rfc822_msg, msg.msg_data)
 
