@@ -23,7 +23,7 @@ setup(
       zip_safe=True,
       packages=['pymta'],
       classifiers = [
-          'Development Status :: 3 - Development/Alpha',
+          'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
           'License :: OSI Approved :: MIT License',
           'Operating System :: OS Independent',
@@ -31,7 +31,7 @@ setup(
           'Topic :: Communications :: Email',
           'Topic :: Software Development :: Libraries :: Python Modules',
         ],
-        test_suite = 'nose.collector',
+      test_suite = 'nose.collector',
 )
 
 
