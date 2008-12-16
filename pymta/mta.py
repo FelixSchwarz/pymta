@@ -33,7 +33,7 @@ __all__ = ['PythonMTA']
 class PythonMTA(asyncore.dispatcher):
     version='0.1'
 
-    def __init__(self, local_address, bind_port, policy_class, authenticator_class=None):
+    def __init__(self, local_address, bind_port, policy_class=None, authenticator_class=None):
         asyncore.dispatcher.__init__(self)
         self._policy_class = policy_class
         self._authenticator_class = authenticator_class
@@ -51,7 +51,9 @@ class PythonMTA(asyncore.dispatcher):
     def handle_accept(self):
         connection, remote_ip_and_port = self.accept()
         remote_ip_string, port = remote_ip_and_port
-        policy = self._policy_class()
+        policy = None
+        if self._policy_class != None:
+            policy = self._policy_class()
         authenticator = None
         if self._authenticator_class != None:
             authenticator = self._authenticator_class()
