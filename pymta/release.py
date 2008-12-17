@@ -14,7 +14,7 @@ you want to...
 author = "Felix Schwarz"
 email = "felix.schwarz@oss.schwarz.eu"
 url = "http://www.schwarz.eu/opensource/projects/pymta"
-download_url = "http://oss.schwarz.eu/cgi-bin/hgwebdir.cg/pymta"
+download_url = "http://oss.schwarz.eu/cgi-bin/hgwebdir.cgi/pymta/archive/d32466fdd1af.tar.gz"
 copyright = "© 2008 Felix Schwarz"
 license="MIT"
 
