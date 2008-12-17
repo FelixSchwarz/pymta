@@ -31,7 +31,6 @@ __all__ = ['PythonMTA']
 
 
 class PythonMTA(asyncore.dispatcher):
-    version='0.1'
 
     def __init__(self, local_address, bind_port, policy_class=None, authenticator_class=None):
         asyncore.dispatcher.__init__(self)
@@ -48,16 +47,24 @@ class PythonMTA(asyncore.dispatcher):
         self.bind((local_address, bind_port))
         self.listen(5)
     
-    def handle_accept(self):
-        connection, remote_ip_and_port = self.accept()
-        remote_ip_string, port = remote_ip_and_port
-        policy = None
-        if self._policy_class != None:
-            policy = self._policy_class()
+    def _get_authenticator(self):
         authenticator = None
         if self._authenticator_class != None:
             authenticator = self._authenticator_class()
-        SMTPCommandParser(self, connection, remote_ip_and_port, policy, 
+        return authenticator
+    
+    def _get_policy(self)
+        policy = None
+        if self._policy_class != None:
+            policy = self._policy_class()
+        return policy
+    
+    def handle_accept(self):
+        connection, remote_ip_and_port = self.accept()
+        remote_ip_string, port = remote_ip_and_port
+        policy = self._get_policy()
+        authenticator = self._get_authenticator()
+        SMTPCommandParser(self, connection, remote_ip_string, port, policy, 
                           authenticator)
     
     def primary_hostname(self):

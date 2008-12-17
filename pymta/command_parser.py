@@ -65,7 +65,7 @@ class SMTPCommandParser(asynchat.async_chat):
     
     LINE_TERMINATOR = '\r\n'
 
-    def __init__(self, server, connection, remote_ip_and_port, policy, 
+    def __init__(self, server, connection, remote_ip_string, port, policy, 
                  authenticator=None):
         asynchat.async_chat.__init__(self, connection)
         self.set_terminator(self.LINE_TERMINATOR)
@@ -80,7 +80,6 @@ class SMTPCommandParser(asynchat.async_chat):
                                    authenticator=authenticator)
         allowed_commands = self.session.get_all_allowed_internal_commands()
         self._parser = ParserImplementation(allowed_commands)
-        remote_ip_string, remote_port = remote_ip_and_port
         self.session.new_connection(remote_ip_string, remote_port)
     
     def _build_state_machine(self):
