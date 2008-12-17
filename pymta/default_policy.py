@@ -34,7 +34,7 @@ class DefaultMTAPolicy(object):
     def accept_helo(self, helo_string, message):
         return True
     
-    def accept_ehlo(self, helo_string, message):
+    def accept_ehlo(self, ehlo_string, message):
         return True
     
     def accept_auth_plain(self, username, password, message):

@@ -10,5 +10,243 @@ you want to...
 * build a custom SMTP server with non-standard behavior without reimplementing the whole SMTP protocol.
 * have a low-volume SMTP server which can be easily extended using Python.
 
+.. toctree::
+    :maxdepth: 2
+
+
+Installation + Setup
+====================
+
+pymta is just a Python library which uses setuptools so it does not require 
+a special setup. The only direct dependency is repoze.workflow (0.2dev). Currently
+pymta is only tested with Python 2.5 but probably 2.4 works too. The goal is to 
+make pymta compatible with Python 2.3-2.6. Python 2.3 may require a custom 
+version of asyncore.
+
+
+Goals of pymta
+==============
+
+The main goal of pymta is to provide a basic SMTP server for unit tests. It must
+be easy to inject custom behavior (policy checks) for every SMTP command. 
+Furthermore the library should come with an extensive set of tests to ensure that
+does the right thing(tm).
+
+
+Development Status
+==================
+
+Currently (12/2008, version 0.2) the library only implements basic SMTP with 
+very few extensions (e.g. PLAIN authentication). 'Advanced' features which are 
+necessary for any decent MTA like TLS and pipelining are not implemented yet. 
+Currently pymta is used only in the unit tests for `TurboMail <http://www.python-turbomail.org>`_.
+Therefore it should be considered as beta software.
+
+
+Related Projects
+================
+
+There are some other SMTP server implementations in Python available which you 
+may want to use if you need a proven implementation right now:
+
+* `Python's smtpd <http://docs.python.org/library/smtpd.html>`_
+* `tmda-ofmipd <http://tmda.svn.sourceforge.net/viewvc/tmda/trunk/tmda/bin/tmda-ofmipd?revision=2194&view=markup>`_
+* `Twisted Mail <http://twistedmatrix.com/trac/wiki/TwistedMail>`_
+
+Python's **smtpd** is a module which is included in the standard distribution of 
+Python for a long time. In the beginning I used this module for my unit tests 
+but quite soon I had to realize that the code is quite old and messy and it is
+nearly impossible to implement a custom behavior (e.g. reject certain recipients).
+pymta evolved out of smtpd after multiple refactorings based on the idea to use 
+a simple finite state machine (repoze.workflow). 
+
+**tmda-ofmipd** is another implementation which is based on Python's smtpd. It is
+distributed only as part of a larger Python application which makes it harder 
+to use if you just need a plain Python SMTP server. Furthermore the code was not
+cleaned up so it may be a bit hard to understand but it supports TLS (using 
+tlslite).
+
+**Twisted Mail** is probably the most featureful SMTP server implementation 
+in Python available right now. It uses the twisted framework which can be either a 
+huge advantage or disadvantage, depending on your point of view. When I started 
+out with the naïve idea of just extending Python's smtpd a bit, I dismissed 
+Twisted Mail because it seemed to be quite hard to implement some custom behavior
+without writing too much code.
+
+
+Architectural Overview
+**********************
+
+pytma uses asynchronous programming to handle multiple connections at the same 
+time and is based on Python's asyncore. There are two state machines: One for
+the SMTP command parsing mode (single-line commands or data) in the 
+SMTPCommandParser and another much bigger state machine in the SMTPSession to 
+control the correct order of commands sent by the SMTP client.
+
+The main idea of pymta was to make it easy adding custom behavior which is
+considered configuration for 'real' SMTP servers like `Exim <http://www.exim.org>`_.
+Therefore you should look at the DefaultMTAPolicy to add restrictions on certain SMTP
+commands (check recipient addresses, scan the message's content for spam before
+accepting it). In order to authenticate SMTP clients (check username and 
+password) you may implement the IAuthenticator interface.
+
+
+Components
+***********
+
+pymta consists of several main components (classes) which may be important to 
+know.
+
+PythonMTA
+=========
+
+The PythonMTA is the main server component which listens on a certain port for 
+new connections. There should be only one instance of this object. When a new 
+connection is received, the PythonMTA spawns a new SMTPCommand parser which will
+handle the complete SMTP session. If a message was submitted successfully, the
+new_message_received() method of PythonMTA will be called so the MTA is in charge
+of actually doing something with the message.
+
+You can instantiate a new server like that::
+
+    import asyncore
+    from pymta import PythonMTA
+    
+    mta = PythonMTA('localhost', 25)
+    try:
+        asyncore.loop()
+    except KeyboardInterrupt:
+        pass
+
+
+
+**Interface**
+
+.. class:: PythonMTA(local_address, bind_port, [policy_class, [authenticator_class]])
+    
+    local_address is a string containing either the IP oder the DNS hostname of 
+    the interface on which PythonMTA should listen. policy_class and 
+    authenticator_class are callables which can be used to add custom behavior. 
+    Every new connection gets their own instance of policy_class and 
+    authenticator_class so these classes don't have to be thread-safe. If you ommit
+    the policy, all syntactically valid SMTP commands are accepted. If there is
+    not authenticator specified, authentication will not be available.
+
+.. method:: new_message_received(msg)
+    
+    This method is called when a new message was submitted successfully. The mta
+    is then in charge of delivering the message to the specified recipients. 
+    Please not that you must not reject the message anymore at this stage (if 
+    there are problems you must generate a non-delivery report aka bounce). Because
+    there can be multiple active connections at the same time it is a good idea to
+    make the method thread-safe and protect queue access. 
+
+
+DefaultMTAPolicy
+================
+
+The policy is asked after every SMTP command if the command should be accepted 
+or not. You can use this to check the parameter of the command or make some 
+features only available for selected clients.
+
+All methods in the policy should return a boolean value to express if a command 
+should be accepted. If you need more control you can return a tuple containing
+the boolean decision and either a single-line response as string or list/tuple
+containing the response code and response text::
+
+    def accept_helo(self, helo_string, message):
+        # pymta will return the default error message for the given command if 
+        # you just return False
+        return False
+        
+        # This will send out a '553 Bad helo string' and the command is 
+        # rejected. pymta won't send any additional reply because you did that
+        # already.
+        return (False, (553, 'Bad helo string'))
+        
+        # This is basically the same as above but now it will trigger a 
+        # multi-line SMTP response:
+        # 553-Bad helo string
+        # 553 Evil IP
+        return (False, (553, ('Bad helo string', 'Evil IP'))
+
+In the default policy you don't have to care if the commands were given in the
+correct order (the state machines will take care of that). The only thing is 
+that the message object passed into many policy methods does not contain all
+data at certain stages (e.g. accept_mail_from can not access the recipients list
+because that was not submitted yet).
+
+
+**Interface**
+
+.. method:: accept_new_connection(peer)
+    
+    This method is called directly after a new connection is received. The 
+    policy can decide if the given peer is allowed to connect to the SMTP 
+    server. If it declines, the connection will be closed immediately.
+
+.. method:: accept_helo(helo_string, message)
+    
+    Decides if the HELO command with the given helo_name should be accepted.
+
+.. method:: accept_ehlo(ehlo_string, message)
+    
+    Decides if the EHLO command with the given helo_name should be accepted.
+
+.. method:: accept_auth_plain(username, password, message)
+    
+    Decides if we allow AUTH plain for this client. Please note that username
+    and password are not verified before, the authenticator will check them
+    after the policy allowed this command.
+
+.. method:: accept_from(sender, message)
+    
+    Decides if the sender of this message (MAIL FROM) should be accepted.
+
+.. method:: accept_rcpt_to(new_recipient, message)
+    
+    Decides if recipient of this message (RCPT TO) should be accepted. If a 
+    message should be delivered to multiple recipients this method is called
+    for every recipient.
+
+.. method:: accept_data(message)
+    
+    Decides if we allow the client to start a message transfer (the actual 
+    message contents will be transferred after this method allowed it).
+
+.. method:: accept_msgdata(message)
+    
+    This method actually matches no real SMTP command. It is called after a
+    message was transferred completely and this is the last check before the
+    SMTP server takes the responsibility of transferring it to the recipients.
+
+
+IAuthenticator
+==============
+
+
+Message
+=======
+
+
+Peer
+====
+
+SMTPSession
+===========
+
+
+Unit Test Helper Classes
+========================
+
+The pymta package contains some helper classes which are not needed for normal
+operation but may be helpful your unit tests.
+
+
+DebuggingMTA
+------------
+
+MTAThread
+---------
 
 
