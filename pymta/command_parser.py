@@ -59,13 +59,13 @@ class SMTPCommandParser(asynchat.async_chat):
     the SMTPSession.
     
     The original 'SMTPChannel' class from Python.org handled all communication 
-    with asynchat, implemented a extremly simple state machine and processed 
+    with asynchat, implemented a extremely simple state machine and processed 
     the data. Implementing hooks in that design (or adding fine-grained 
     policies) was not possible at all with the previous design."""
     
     LINE_TERMINATOR = '\r\n'
 
-    def __init__(self, server, connection, remote_ip_string, port, policy, 
+    def __init__(self, server, connection, remote_ip_string, remote_port, policy, 
                  authenticator=None):
         asynchat.async_chat.__init__(self, connection)
         self.set_terminator(self.LINE_TERMINATOR)

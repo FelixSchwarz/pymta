@@ -32,7 +32,8 @@ __all__ = ['PythonMTA']
 
 class PythonMTA(asyncore.dispatcher):
 
-    def __init__(self, local_address, bind_port, policy_class=None, authenticator_class=None):
+    def __init__(self, local_address, bind_port, policy_class=None, 
+                 authenticator_class=None):
         asyncore.dispatcher.__init__(self)
         self._policy_class = policy_class
         self._authenticator_class = authenticator_class
@@ -53,7 +54,7 @@ class PythonMTA(asyncore.dispatcher):
             authenticator = self._authenticator_class()
         return authenticator
     
-    def _get_policy(self)
+    def _get_policy(self):
         policy = None
         if self._policy_class != None:
             policy = self._policy_class()
