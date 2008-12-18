@@ -64,7 +64,7 @@ a simple finite state machine (repoze.workflow).
 distributed only as part of a larger Python application which makes it harder 
 to use if you just need a plain Python SMTP server. Furthermore the code was not
 cleaned up so it may be a bit hard to understand but it supports TLS (using 
-tlslite).
+`tlslite <http://sourceforge.net/projects/tlslite/>`_).
 
 **Twisted Mail** is probably the most featureful SMTP server implementation 
 in Python available right now. It uses the twisted framework which can be either a 
@@ -224,16 +224,42 @@ because that was not submitted yet).
 IAuthenticator
 ==============
 
+Authenticators check if the user's credentials are actually correct. This may
+involve some checking against external subsystems (e.g. a database or a LDAP
+directory).
+
+**Interface**
+
+.. method:: authenticate(username, password, peer)
+    
+    This method is called after the client issued an AUTH PLAIN command and
+    must return a boolean value (True/False).
+
 
 Message
 =======
 
+The Message is a data object contains all information about a message sent by 
+a client. This includes not only the actual RFC822 message contents but also 
+information about the SMTP envelope, the peer and the helo string used. The 
+information is filled as the client sends some commands so not all information 
+may be available at any time (e.g. the msg_data not available before the client 
+actually sent the RFC822 message).
 
 Peer
 ====
 
+The Peer is another data object which contains the remote host ip address and
+the remote port.
+
+
 SMTPSession
 ===========
+
+This class actually implements the most complicated part of the SMTP state 
+machine and is responsible for calling the policy. If you want to extend the
+functionality or need to implement some custom behavior which is beyond what you
+can do using Policies, check this class.
 
 
 Unit Test Helper Classes
@@ -248,5 +274,13 @@ DebuggingMTA
 
 MTAThread
 ---------
+
+
+TOOD
+****
+
+* Size checking (only accept messages below a certain size, don't)
+* TLS implementation (probably using `nss <http://www.mozilla.org/projects/security/pki/nss/>`_/`python-nss <https://admin.fedoraproject.org/pkgdb/packages/name/python-nss>`_ or 
+`gnutls <http://www.gnu.org/software/gnutls/>`_/`python-gnutls <http://pypi.python.org/pypi/python-gnutls>`_)
 
 
