@@ -320,6 +320,21 @@ class SMTPSession(object):
     def smtp_ehlo(self):
         self._process_helo_or_ehlo('accept_ehlo', self._reply_to_ehlo)
     
+    def _check_password(self, username, password):
+        decision, response_sent = self.is_allowed('accept_auth_plain', username, password, self._message)
+        if not decision:
+            raise PolicyDenial(response_sent)
+        assert response_sent == False
+        if self._authenticator == None:
+            self.reply(535, 'AUTH not available')
+            raise InvalidParametersException(response_sent=True)
+        credentials_correct = \
+            self._authenticator.authenticate(username, password, self._message.peer)
+        if credentials_correct:
+            self.reply(235, 'Authentication successful')
+        else:
+            self.reply(535, 'Bad username or password')
+    
     def smtp_auth_plain(self):
         base64_credentials = self._command_arguments
         try:
@@ -330,20 +345,7 @@ class SMTPSession(object):
             match = re.search('^\x00([^\x00]*)\x00([^\x00]*)$', credentials)
             if match:
                 username, password = match.group(1), match.group(2)
-                
-                decision, response_sent = self.is_allowed('accept_auth_plain', username, password, self._message)
-                if not decision:
-                    raise PolicyDenial(response_sent)
-                assert response_sent == False
-                if self._authenticator == None:
-                    self.reply(535, 'AUTH not available')
-                    raise InvalidParametersException(response_sent=True)
-                credentials_correct = \
-                    self._authenticator.authenticate(username, password, self._message.peer)
-                if credentials_correct:
-                    self.reply(235, 'Authentication successful')
-                else:
-                    self.reply(535, 'Bad username or password')
+                self._check_password(username, password)
             else:
                 raise InvalidParametersException(credentials)
     
