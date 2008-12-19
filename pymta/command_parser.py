@@ -152,6 +152,17 @@ class SMTPCommandParser(asynchat.async_chat):
         the actual message data."""
         self.state.execute(self, 'DATA')
     
+    def _assemble_msgdata(self, input_data):
+        """Uses the input data to recover the original payload (includes 
+        transparency support as specified in RFC 821, Section 4.5.2)."""
+        lines = []
+        for part in input_data:
+            for line in part.split(self.LINE_TERMINATOR):
+                if line.startswith('.'):
+                    line = line[1:]
+                lines.append(line)
+        return '\n'.join(lines)
+    
     def found_terminator(self):
         input_data = self.data
         if self._state == 'commands':
@@ -159,13 +170,8 @@ class SMTPCommandParser(asynchat.async_chat):
             self.session.handle_input(command, parameter)
         else:
             assert isinstance(input_data, list)
-            # TODO: Remove extraneous carriage returns and de-transparency according
-            # to RFC 821, Section 4.5.2.
-            lines = []
-            for part in input_data:
-                lines.extend(part.split(self.LINE_TERMINATOR))
-            parameter = '\n'.join(lines)
-            self.session.handle_input('MSGDATA', parameter)
+            msgdata = self._assemble_msgdata(input_data)
+            self.session.handle_input('MSGDATA', msgdata)
     
     def handle_close(self):
         print 'CLOSE!'

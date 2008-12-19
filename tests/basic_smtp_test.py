@@ -124,5 +124,17 @@ class BasicSMTPTest(TestCase):
         second_msg = queue.get()
         self.assertEqual(first_msg.smtp_helo, second_msg.smtp_helo)
         self.assertEqual(first_msg.username, second_msg.username)
+    
+    def test_transparency_support_enabled(self):
+        """Check that there is transparency support for lines starting with a 
+        dot in the message body (RFC 821, section 4.5.2)."""
+        msg = rfc822_msg + '\n.Bar\nFoo'
+        self.connection.sendmail('from@example.com', 'foo@example.com', msg)
+        self.connection.quit()
+        
+        queue = self.mta.queue
+        self.assertEqual(1, queue.qsize())
+        received_msg = queue.get()
+        self.assertEqual(msg, received_msg.msg_data)
 
 
