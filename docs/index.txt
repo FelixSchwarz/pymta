@@ -7,7 +7,8 @@ pymta is a library to build a custom SMTP server in Python. This is useful if
 you want to...
 
 * test mail-sending code against a real SMTP server even in your unit tests.
-* build a custom SMTP server with non-standard behavior without reimplementing the whole SMTP protocol.
+* build a custom SMTP server with non-standard behavior without reimplementing 
+  the whole SMTP protocol.
 * have a low-volume SMTP server which can be easily extended using Python.
 
 .. toctree::
@@ -22,6 +23,16 @@ a special setup. The only direct dependency is repoze.workflow (0.2dev). Current
 pymta is only tested with Python 2.5 but probably 2.4 works too. The goal is to 
 make pymta compatible with Python 2.3-2.6. Python 2.3 may require a custom 
 version of asyncore.
+
+repoze.workflow
+---------------
+repoze.workflow is not available in pypi (yet?) so you have to install it
+directly from the svn::
+  
+  easy_install http://svn.repoze.org/repoze.workflow/trunk/
+
+repoze.workflow requires zope.interface which available via pypi (and 
+installable via the package manager for most Linux distributions).
 
 
 Goals of pymta
@@ -276,11 +287,15 @@ MTAThread
 ---------
 
 
-TOOD
+TODO
 ****
 
 * Size checking (only accept messages below a certain size, don't)
-* TLS implementation (probably using `nss <http://www.mozilla.org/projects/security/pki/nss/>`_/`python-nss <https://admin.fedoraproject.org/pkgdb/packages/name/python-nss>`_ or 
-`gnutls <http://www.gnu.org/software/gnutls/>`_/`python-gnutls <http://pypi.python.org/pypi/python-gnutls>`_)
+* TLS implementation (probably using `nss <http://www.mozilla.org/projects/security/pki/nss/>`_ /
+  `python-nss <https://admin.fedoraproject.org/pkgdb/packages/name/python-nss>`_ 
+  or `gnutls <http://www.gnu.org/software/gnutls/>`_ /
+  `python-gnutls <http://pypi.python.org/pypi/python-gnutls>`_)
+* Restructure the classes, cleanup API, use interfaces and put them into the api
+  package.
 
 
