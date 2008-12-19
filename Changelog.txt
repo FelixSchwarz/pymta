@@ -1,0 +1,11 @@
+
+Changelog for pymta
+
+0.2.1 (19.12.2008)
+ - wrote documentation
+ - bug fixes
+    - multiple messages in one SMTP transaction
+    - transparency support for lines in the message starting with a dot
+
+0.2 (16.12.2008)
+ - initial release
