@@ -69,6 +69,7 @@ class BasicSMTPTest(TestCase):
         self.assertEqual('<from@example.com>', msg.smtp_from)
         self.assertEqual(expected_recipients, msg.smtp_to)
         self.assertEqual(rfc822_msg, msg.msg_data)
+        return msg
     
     def test_send_simple_email(self):
         code, replytext = self.connection.helo('foo')
@@ -103,6 +104,25 @@ class BasicSMTPTest(TestCase):
         self.connection.login('admin', 'admin')
         self.connection.sendmail('from@example.com', recipient, rfc822_msg)
         self.connection.quit()
-        self._check_received_mail([recipient])
+        msg = self._check_received_mail([recipient])
+        self.assertEqual('admin', msg.username)
+    
+    def test_send_multiple_emails_in_one_connection(self):
+        """Check that we can send multiple emails in the same connection (and
+        the second email needs to have the same peer information/helo string 
+        though this information is only sent once)."""
+        self.connection.login('admin', 'admin')
+        self.connection.sendmail('x@example.com', 'foo@example.com', rfc822_msg)
+        self.connection.sendmail('x@example.com', 'bar@example.com', rfc822_msg)
         
+        queue = self.mta.queue
+        self.assertEqual(2, queue.qsize())
+        first_msg = queue.get()
+        self.assertNotEqual(None, first_msg.smtp_helo)
+        self.assertEqual('<x@example.com>', first_msg.smtp_from)
+        
+        second_msg = queue.get()
+        self.assertEqual(first_msg.smtp_helo, second_msg.smtp_helo)
+        self.assertEqual(first_msg.username, second_msg.username)
+
 

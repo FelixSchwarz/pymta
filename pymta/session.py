@@ -47,6 +47,13 @@ class PyMTAException(Exception):
         self.code = code
         self.reply_text = reply_text
 
+class DynamicStateSwitchException(PyMTAException):
+    """Used to implement more complicated state transistions where the next 
+    state depends on other values (e.g. where to go after a message was 
+    received - depends on ESMTP and AUTH)."""
+    def __init__(self, new_state):
+        self.new_state = new_state
+
 class InvalidParametersException(PyMTAException):
     def __init__(self, parameter=None, *args, **kwargs):
         self.parameter = parameter
@@ -143,16 +150,20 @@ class SMTPSession(object):
         self._add_state('greeted', 'HELO',  'initialized')
         
         self._add_state('greeted', 'EHLO',  'esmtp_initialized')
+        
+        # ----
+        self._add_state('initialized', 'MAIL FROM',  'sender_known')
         self._add_state('esmtp_initialized', 'MAIL FROM',  'sender_known')
+        
         self._add_state('esmtp_initialized', 'AUTH PLAIN',  'authenticated')
         self._add_state('authenticated', 'MAIL FROM',  'sender_known')
+        # ----
         
-        self._add_state('initialized', 'MAIL FROM',  'sender_known')
         self._add_state('sender_known', 'RCPT TO',  'recipient_known')
         # multiple recipients
         self._add_state('recipient_known', 'RCPT TO',  'recipient_known')
         self._add_state('recipient_known', 'DATA',  'receiving_message')
-        self._add_state('receiving_message', 'MSGDATA',  'identify')
+        self._add_state('receiving_message', 'MSGDATA',  'initialized')
         self._add_help_noop_and_quit_transitions()
         self._add_rset_transitions()
         self.valid_commands = [command for from_state, command in self.state.states]
@@ -162,7 +173,7 @@ class SMTPSession(object):
         """This method dispatches a SMTP command to the appropriate handler 
         method. It is called after a new command was received and a valid 
         transition was found."""
-        print from_state, ' -> ', to_state, ':', smtp_command
+        #print from_state, ' -> ', to_state, ':', smtp_command
         name_handler_method = 'smtp_%s' % smtp_command.lower().replace(' ', '_')
         try:
             handler_method = getattr(self, name_handler_method)
@@ -261,8 +272,6 @@ class SMTPSession(object):
     def close_connection(self):
         "Request a connection close from the SMTP session handling instance."
         self._command_parser.close_when_done()
-        self.remote_ip_string = None
-        self.remote_port = None
     
     
     # -------------------------------------------------------------------------
@@ -331,6 +340,7 @@ class SMTPSession(object):
         credentials_correct = \
             self._authenticator.authenticate(username, password, self._message.peer)
         if credentials_correct:
+            self._message.username = username
             self.reply(235, 'Authentication successful')
         else:
             self.reply(535, 'Bad username or password')
@@ -388,6 +398,13 @@ class SMTPSession(object):
         elif not decision:
             raise PolicyDenial(response_sent)
     
+    def _copy_basic_settings(self, msg):
+        peer = self._message.peer
+        new_message = Message(peer=Peer(peer.remote_ip, peer.remote_port), 
+                              smtp_helo=self._message.smtp_helo,
+                              username=self._message.username)
+        return new_message
+    
     def smtp_msgdata(self):
         """This method handles not a real smtp command. It is called when the
         whole message was received (multi-line DATA command is completed)."""
@@ -396,11 +413,12 @@ class SMTPSession(object):
         decision, response_sent = self.is_allowed('accept_msgdata', msg_data, self._message)
         if decision:
             self._message.msg_data = msg_data
+            new_message = self._copy_basic_settings(self._message)
             self._command_parser.new_message_received(self._message)
-            self._message = None
             if not response_sent:
                 self.reply(250, 'OK')
                 # Now we must not loose the message anymore!
+            self._message = new_message
         elif not decision:
             raise PolicyDenial(response_sent, 550, 'Message content is not acceptable')
     

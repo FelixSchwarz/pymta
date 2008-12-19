@@ -28,9 +28,9 @@ __all__ = ['Message', 'Peer']
 
 class Message(object):
     def __init__(self, peer, smtp_helo=None, smtp_from=None, smtp_to=None, 
-                 msg_data=None):
+                 msg_data=None, username=None):
         self.peer = peer
-        self.smtp_helo = None
+        self.smtp_helo = smtp_helo
         self.smtp_from = smtp_from
         if smtp_to == None:
             smtp_to = []
@@ -38,6 +38,7 @@ class Message(object):
             smtp_to = [smtp_to]
         self.smtp_to = smtp_to
         self.msg_data = msg_data
+        self.username = username
 
 
 

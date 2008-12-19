@@ -1,6 +1,7 @@
+#!/usr/bin/env python
+
 
 import asyncore
-
 
 from pymta import PythonMTA, DefaultMTAPolicy
 
