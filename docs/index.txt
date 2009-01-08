@@ -61,15 +61,27 @@ There are some other SMTP server implementations in Python available which you
 may want to use if you need a proven implementation right now:
 
 * `Python's smtpd <http://docs.python.org/library/smtpd.html>`_
-* `tmda-ofmipd <http://tmda.svn.sourceforge.net/viewvc/tmda/trunk/tmda/bin/tmda-ofmipd?revision=2194&view=markup>`_
 * `Twisted Mail <http://twistedmatrix.com/trac/wiki/TwistedMail>`_
+* `tmda-ofmipd <http://tmda.svn.sourceforge.net/viewvc/tmda/trunk/tmda/bin/tmda-ofmipd?revision=2194&view=markup>`_
+* `Son Of Sam Email Server <http://www.zedshaw.com/projects/sos/>`_
+* `smtps.py <http://www.hare.demon.co.uk/pysmtp.html>`_
 
 Python's **smtpd** is a module which is included in the standard distribution of 
-Python for a long time. In the beginning I used this module for my unit tests 
-but quite soon I had to realize that the code is quite old and messy and it is
-nearly impossible to implement a custom behavior (e.g. reject certain recipients).
-pymta evolved out of smtpd after multiple refactorings based on the idea to use 
-a simple finite state machine (repoze.workflow). 
+Python for a long time. Though it implements only a *very* basic feature set 
+this module is used as a basis for many smaller SMTP server implementations.
+In the beginning I used this module for my unit tests too but quite soon I had 
+to  realize that the code is quite old and messy and it is nearly impossible to 
+implement a custom behavior (e.g. reject certain recipients). pymta evolved out 
+of smtpd after multiple refactorings based on the idea to use a simple finite 
+state machine (repoze.workflow).  
+
+**Twisted Mail** is probably the most featureful SMTP server implementation 
+in Python available right now. It uses the twisted framework which can be 
+either a huge advantage or disadvantage, depending on your point of view. It can
+use TLS via OpenSSL (using the Twisted infrastructure). When I started out with 
+the naïve idea of just extending Python's smtpd a bit, I dismissed Twisted Mail 
+because it seemed to be quite hard to implement some custom behavior without 
+writing too much code.
 
 **tmda-ofmipd** is another implementation which is based on Python's smtpd. It is
 distributed only as part of a larger Python application which makes it harder 
@@ -77,12 +89,15 @@ to use if you just need a plain Python SMTP server. Furthermore the code was not
 cleaned up so it may be a bit hard to understand but it supports TLS (using 
 `tlslite <http://sourceforge.net/projects/tlslite/>`_).
 
-**Twisted Mail** is probably the most featureful SMTP server implementation 
-in Python available right now. It uses the twisted framework which can be either a 
-huge advantage or disadvantage, depending on your point of view. When I started 
-out with the naïve idea of just extending Python's smtpd a bit, I dismissed 
-Twisted Mail because it seemed to be quite hard to implement some custom behavior
-without writing too much code.
+**Son Of Sam Email Server** implements an SMTP server (based Python's smtpd too)
+but focuses on delivery and user info lookup. There are no changes to Python's
+smtpd so the server does not support any kind of recipient verification.
+
+**smtps.py** is a really simple, single-threaded SMTP server rewritten from 
+scratch with a quite clean design (compared to Python's smtpd) although it only
+implements the absolute minimum of SMTP and many things like the command parsing
+are just hard-coded. On the other hand, the server's behavior can be changed by
+implementing a custom strategy class.
 
 
 Architectural Overview
@@ -256,6 +271,7 @@ information about the SMTP envelope, the peer and the helo string used. The
 information is filled as the client sends some commands so not all information 
 may be available at any time (e.g. the msg_data not available before the client 
 actually sent the RFC822 message).
+
 
 Peer
 ====
