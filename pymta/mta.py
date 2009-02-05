@@ -31,6 +31,16 @@ __all__ = ['PythonMTA']
 
 
 class PythonMTA(asyncore.dispatcher):
+    """Create a new MTA which listens for new connections afterwards.
+    local_address is a string containing either the IP oder the DNS 
+    hostname of the interface on which PythonMTA should listen. policy_class
+    and authenticator_class are callables which can be used to add custom 
+    behavior.
+    Every new connection gets their own instance of policy_class and     
+    authenticator_class so these classes don't have to be thread-safe. If 
+    you ommit the policy, all syntactically valid SMTP commands are 
+    accepted. If there is no authenticator specified, authentication will 
+    not be available."""
 
     def __init__(self, local_address, bind_port, policy_class=None, 
                  authenticator_class=None):
@@ -73,7 +83,17 @@ class PythonMTA(asyncore.dispatcher):
     primary_hostname = property(primary_hostname)
     
     def new_message_received(self, msg):
-        """Called from the SMTPSession whenever a new message was accepted."""
+        """This method is called when a new message was submitted successfully.
+        The MTA is then in charge of delivering the message to the specified 
+        recipients.
+        Please not that you can not reject the message anymore at this stage (if
+        there are problems you must generate a non-delivery report aka bounce). 
+        Because there can be multiple active connections at the same time it is 
+        a good idea to make the method thread-safe and protect queue access.
+        
+        Attention: This method will probably be removed when we switch to a 
+        process-based interface (scheduled for 0.3).
+        """
         print msg
         raise NotImplementedError
 

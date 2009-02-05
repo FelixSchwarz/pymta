@@ -29,32 +29,52 @@ class DefaultMTAPolicy(object):
     """This is the default policy which just accepts everything."""
     
     def accept_new_connection(self, peer):
+        """This method is called directly after a new connection is received. 
+        The  policy can decide if the given peer is allowed to connect to the 
+        SMTP server. If it declines, the connection will be closed 
+        immediately."""
         return True
     
     def accept_helo(self, helo_string, message):
+        """Decides if the HELO command with the given helo_name should be 
+        accepted."""
         return True
     
     def accept_ehlo(self, ehlo_string, message):
+        """Decides if the EHLO command with the given helo_name should be 
+        accepted."""
         return True
     
     def accept_auth_plain(self, username, password, message):
-        """The username and password are not verified by the time this method
-        is called, they were just supplied by the user.
+        """Decides if AUTH plain should be allowed for this client. Please note 
+        that username and password are not verified before, the authenticator 
+        will check them after the policy allowed this command.
         
         The method must not return a response by itself in case it accepts the
         AUTH PLAIN command!"""
         return True
     
     def accept_from(self, sender, message):
+        "Decides if the sender of this message (MAIL FROM) should be accepted."
         return True
     
     def accept_rcpt_to(self, new_recipient, message):
+        """Decides if recipient of this message (RCPT TO) should be accepted. 
+        If a message should be delivered to multiple recipients this method is 
+        called for every recipient."""
         return True
     
     def accept_data(self, message):
+        """Decides if we allow the client to start a message transfer (the 
+        actual message contents will be transferred after this method allowed 
+        it)."""
         return True
     
     def accept_msgdata(self, msgdata, message):
+        """This method actually matches no real SMTP command. It is called 
+        after a message was transferred completely and this is the last check 
+        before the SMTP server takes the responsibility of transferring it to 
+        the recipients."""
         return True
 
 

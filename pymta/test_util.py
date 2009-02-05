@@ -41,19 +41,20 @@ __all__ = ['DebuggingMTA', 'MTAThread']
 
 
 class DebuggingMTA(PythonMTA):
+    """DebuggingMTA is a very simple implementation of PythonMTA which just 
+    collects all incoming messages so that you can examine then afterwards."""
+
     def __init__(self, *args, **kwargs):
         PythonMTA.__init__(self, *args, **kwargs)
         self.queue = Queue()
 
     def new_message_received(self, msg):
-        """Called from the CommandParser whenever a new message was accepted."""
         self.queue.put(msg)
 
 
 class MTAThread(threading.Thread):
-    """This class is not needed for the MTA but a helper class to run a server
-    in a separate thread which is helpful for unit testing. I guess others will
-    need a class like this too so I added it to the library code itself."""
+    """This class runs a PythonMTA in a separate thread which is helpful for 
+    unit testing."""
 
     def __init__(self, server):
         threading.Thread.__init__(self)
@@ -61,7 +62,8 @@ class MTAThread(threading.Thread):
         self.server = server
 
     def run(self):
-        "Just run in a loop until stop() is called."
+        """Create a new thread which runs the server until stop() is called."""
+        # Just run in a loop until stop() is called.
         while not self.stop_event.isSet():
             try:
                 asyncore.loop(timeout=0.1)
@@ -70,7 +72,7 @@ class MTAThread(threading.Thread):
                     raise
 
     def stop(self, timeout_seconds=5.0):
-        """Stop the mailsink and shut down this thread. timeout_seconds
+        """Stop the mail sink and shut down this thread. timeout_seconds
         specifies how long the caller should wait for the mailsink server to
         close down (default: 5 seconds). If the server did not stop in time, a
         warning message is printed."""

@@ -28,6 +28,8 @@ __all__ = ['IAuthenticator']
 class IAuthenticator(object):
     
     def authenticate(self, username, password, peer):
+        """This method is called after the client issued an AUTH PLAIN command 
+        and must return a boolean value (True/False)."""
         raise NotImplementedError
 
 

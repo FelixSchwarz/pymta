@@ -15,8 +15,8 @@ you want to...
     :maxdepth: 2
 
 
-Installation + Setup
-====================
+Installation and Setup
+======================
 
 pymta is just a Python library which uses setuptools so it does not require 
 a special setup. The only direct dependency is repoze.workflow (0.2dev). Currently
@@ -148,32 +148,17 @@ You can instantiate a new server like that::
 
 **Interface**
 
-.. class:: PythonMTA(local_address, bind_port, [policy_class, [authenticator_class]])
-    
-    local_address is a string containing either the IP oder the DNS hostname of 
-    the interface on which PythonMTA should listen. policy_class and 
-    authenticator_class are callables which can be used to add custom behavior. 
-    Every new connection gets their own instance of policy_class and 
-    authenticator_class so these classes don't have to be thread-safe. If you ommit
-    the policy, all syntactically valid SMTP commands are accepted. If there is
-    not authenticator specified, authentication will not be available.
-
-.. method:: new_message_received(msg)
-    
-    This method is called when a new message was submitted successfully. The mta
-    is then in charge of delivering the message to the specified recipients. 
-    Please not that you must not reject the message anymore at this stage (if 
-    there are problems you must generate a non-delivery report aka bounce). Because
-    there can be multiple active connections at the same time it is a good idea to
-    make the method thread-safe and protect queue access. 
+.. autoclass:: pymta.PythonMTA
+   :members:
 
 
-DefaultMTAPolicy
-================
+Policies
+========
 
-The policy is asked after every SMTP command if the command should be accepted 
-or not. You can use this to check the parameter of the command or make some 
-features only available for selected clients.
+Every MTA can be supplied with a policy. That policy is asked when a SMTP 
+command was received by the client if the command should be accepted or not. 
+You can use this to check the parameter of the command or make some features 
+only available for selected clients.
 
 All methods in the policy should return a boolean value to express if a command 
 should be accepted. If you need more control you can return a tuple containing
@@ -196,71 +181,27 @@ containing the response code and response text::
         # 553 Evil IP
         return (False, (553, ('Bad helo string', 'Evil IP'))
 
-In the default policy you don't have to care if the commands were given in the
-correct order (the state machines will take care of that). The only thing is 
-that the message object passed into many policy methods does not contain all
-data at certain stages (e.g. accept_mail_from can not access the recipients list
+In the policy you don't have to care if the commands were given in the correct 
+order (the state machines will take care of that). The only thing is that the 
+message object passed into many policy methods does not contain all data at 
+certain stages (e.g. accept_mail_from can not access the recipients list 
 because that was not submitted yet).
-
 
 **Interface**
 
-.. method:: accept_new_connection(peer)
-    
-    This method is called directly after a new connection is received. The 
-    policy can decide if the given peer is allowed to connect to the SMTP 
-    server. If it declines, the connection will be closed immediately.
-
-.. method:: accept_helo(helo_string, message)
-    
-    Decides if the HELO command with the given helo_name should be accepted.
-
-.. method:: accept_ehlo(ehlo_string, message)
-    
-    Decides if the EHLO command with the given helo_name should be accepted.
-
-.. method:: accept_auth_plain(username, password, message)
-    
-    Decides if we allow AUTH plain for this client. Please note that username
-    and password are not verified before, the authenticator will check them
-    after the policy allowed this command.
-
-.. method:: accept_from(sender, message)
-    
-    Decides if the sender of this message (MAIL FROM) should be accepted.
-
-.. method:: accept_rcpt_to(new_recipient, message)
-    
-    Decides if recipient of this message (RCPT TO) should be accepted. If a 
-    message should be delivered to multiple recipients this method is called
-    for every recipient.
-
-.. method:: accept_data(message)
-    
-    Decides if we allow the client to start a message transfer (the actual 
-    message contents will be transferred after this method allowed it).
-
-.. method:: accept_msgdata(message)
-    
-    This method actually matches no real SMTP command. It is called after a
-    message was transferred completely and this is the last check before the
-    SMTP server takes the responsibility of transferring it to the recipients.
+.. autoclass:: pymta.DefaultMTAPolicy
+   :members:
 
 
-IAuthenticator
+Authenticators
 ==============
 
 Authenticators check if the user's credentials are actually correct. This may
 involve some checking against external subsystems (e.g. a database or a LDAP
-directory).
+directory). 
 
-**Interface**
-
-.. method:: authenticate(username, password, peer)
-    
-    This method is called after the client issued an AUTH PLAIN command and
-    must return a boolean value (True/False).
-
+.. autoclass:: pymta.IAuthenticator
+   :members:
 
 Message
 =======
@@ -289,29 +230,17 @@ functionality or need to implement some custom behavior which is beyond what you
 can do using Policies, check this class.
 
 
-Unit Test Helper Classes
-========================
+Unit Test Utility Classes
+=========================
 
-The pymta package contains some helper classes which are not needed for normal
-operation but may be helpful your unit tests.
+pymta was created to ease testing SMTP communication without the need to set up
+an external SMTP server. While writing tests for other applications I created 
+some utility classes which are probably helpful in your tests as well...
 
+.. autoclass:: pymta.test_util.DebuggingMTA
+   :members:
 
-DebuggingMTA
-------------
-
-MTAThread
----------
-
-
-TODO
-****
-
-* Size checking (only accept messages below a certain size, don't)
-* TLS implementation (probably using `nss <http://www.mozilla.org/projects/security/pki/nss/>`_ /
-  `python-nss <https://admin.fedoraproject.org/pkgdb/packages/name/python-nss>`_ 
-  or `gnutls <http://www.gnu.org/software/gnutls/>`_ /
-  `python-gnutls <http://pypi.python.org/pypi/python-gnutls>`_)
-* Restructure the classes, cleanup API, use interfaces and put them into the api
-  package.
+.. autoclass:: pymta.test_util.MTAThread
+   :members:
 
 
