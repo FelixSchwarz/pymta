@@ -51,7 +51,7 @@ class ParserImplementation(object):
             command = match.group(1)
             parameter = match.group(2).strip()
         return command, parameter
-    
+
 
 class SMTPCommandParser(asynchat.async_chat):
     """This class handles only the actual communication with the client. As soon

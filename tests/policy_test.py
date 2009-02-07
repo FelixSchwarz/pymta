@@ -24,7 +24,7 @@
 
 from unittest import TestCase
 
-from pymta import DefaultMTAPolicy
+from pymta.api import IMTAPolicy
 
 from tests.util import CommandParserTestCase, DummyAuthenticator
 
@@ -36,7 +36,7 @@ class BasicPolicyTest(CommandParserTestCase):
         super(BasicPolicyTest, self).setUp()
     
     def test_connection_can_be_rejected(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_new_connection(self, peer):
                 return False
         self.init(policy=FalsePolicy())
@@ -48,7 +48,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     
     def test_helo_can_be_rejected(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_helo(self, helo_string, message):
                 return (not helo_string.endswith('example.com'))
         self.init(policy=FalsePolicy())
@@ -58,7 +58,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     
     def test_ehlo_can_be_rejected(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_ehlo(self, ehlo_string, message):
                 return (not ehlo_string.endswith('example.com'))
         self.init(policy=FalsePolicy())
@@ -67,7 +67,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     
     def test_auth_plain_can_be_rejected(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_auth_plain(self, username, password, message):
                 return False
         self.init(policy=FalsePolicy(), authenticator=DummyAuthenticator())
@@ -77,7 +77,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     
     def test_from_can_be_rejected(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_from(self, sender, message):
                 return False
         self.init(policy=FalsePolicy())
@@ -86,7 +86,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     
     def test_rcptto_can_be_rejected(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_rcpt_to(self, new_recipient, message):
                 return False
         self.init(policy=FalsePolicy())
@@ -96,7 +96,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     
     def test_data_can_be_rejected(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_data(self, message):
                 return False
         self.init(policy=FalsePolicy())
@@ -107,7 +107,7 @@ class BasicPolicyTest(CommandParserTestCase):
     
     
     def test_messages_can_be_rejected(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_msgdata(self, msg_data, message):
                 return False
         self.init(policy=FalsePolicy())

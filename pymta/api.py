@@ -1,3 +1,126 @@
 # -*- coding: UTF-8 -*-
+"""This package contains classes which from which you can derive your own 
+classes easily to customize the behavior of your MTA. Everything in here is 
+considered part of the public API which should be as stable as possible."""
+#
+# The MIT License
+# 
+# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+__all__ = ['IAuthenticator', 'IMTAPolicy']
+
+
+class IAuthenticator(object):
+    """Authenticators check if the user’s credentials are actually correct. This
+    may involve some checking against external subsystems (e.g. a database or a
+    LDAP directory)."""
+    
+    def authenticate(self, username, password, peer):
+        """This method is called after the client issued an AUTH PLAIN command 
+        and must return a boolean value (True/False)."""
+        raise NotImplementedError
+
+
+
+class IMTAPolicy(object):
+    """Policies can change with behavior of an MTA dynamically (e.g. don't allow 
+    relaying unless the client is located within the trusted company network,
+    enable authentication only for some connections). In established MTAs like
+    Exim and Postfix it's a very important task for every system administrator 
+    to configure the message acceptance policies which are normally part of the
+    configuration file.
+    
+    A policy does not change the SMTP implementation itself (the state machine) 
+    but can send out custom replies to the client.A policy doesn't have to care 
+    if the commands were given in the correct order (the state machines will 
+    take care of that). The only thing is that the message object passed into 
+    many policy methods does not contain all data at certain stages (e.g. 
+    accept_mail_from can not access the recipients list because that was not 
+    submitted yet).
+
+    'IMTAPolicy' provides a very permissive interface (all commands are 
+    accepted) from which you can derive custom policies. Its methods are usually
+    named 'accept_<SMTP command name>'.
+    
+    Every method in the 'IMTAPolicy' interface can return either a single
+    boolean value (True/False) or a tuple. A boolean value specifies if the
+    command should be accepted. The caller is responsible for sending the actual
+    default replies.
+    
+    Alternatively a policy can choose to return a tuple to have more control 
+    over the reply sent to the client: (decision, (reply code, response)). The
+    decision is the boolean known from the last paragraph. The reply code is an
+    integer which should a be a valid SMTP code. response is either a basestring
+    with a custom message or an iterable of basestrings (in case you need to 
+    return a multiline reply)."""
+    
+    def accept_new_connection(self, peer):
+        """This method is called directly after a new connection is received. 
+        The  policy can decide if the given peer is allowed to connect to the 
+        SMTP server. If it declines, the connection will be closed 
+        immediately."""
+        return True
+    
+    def accept_helo(self, helo_string, message):
+        """Decides if the HELO command with the given helo_name should be 
+        accepted."""
+        return True
+    
+    def accept_ehlo(self, ehlo_string, message):
+        """Decides if the EHLO command with the given helo_name should be 
+        accepted."""
+        return True
+    
+    def accept_auth_plain(self, username, password, message):
+        """Decides if AUTH plain should be allowed for this client. Please note 
+        that username and password are not verified before, the authenticator 
+        will check them after the policy allowed this command.
+        
+        The method must not return a response by itself in case it accepts the
+        AUTH PLAIN command!"""
+        return True
+    
+    def accept_from(self, sender, message):
+        "Decides if the sender of this message (MAIL FROM) should be accepted."
+        return True
+    
+    def accept_rcpt_to(self, new_recipient, message):
+        """Decides if recipient of this message (RCPT TO) should be accepted. 
+        If a message should be delivered to multiple recipients this method is 
+        called for every recipient."""
+        return True
+    
+    def accept_data(self, message):
+        """Decides if we allow the client to start a message transfer (the 
+        actual message contents will be transferred after this method allowed 
+        it)."""
+        return True
+    
+    def accept_msgdata(self, msgdata, message):
+        """This method actually matches no real SMTP command. It is called 
+        after a message was transferred completely and this is the last check 
+        before the SMTP server takes the responsibility of transferring it to 
+        the recipients."""
+        return True
+
+
 
 

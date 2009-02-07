@@ -24,7 +24,7 @@
 
 from unittest import TestCase
 
-from pymta import DefaultMTAPolicy
+from pymta.api import IMTAPolicy
 
 from tests.util import CommandParserTestCase
 
@@ -33,28 +33,28 @@ class PolicyReturnCodesTest(CommandParserTestCase):
     "Tests the different outputs of a policy class"
 
     def test_policy_can_return_true(self):
-        class TruePolicy(DefaultMTAPolicy):
+        class TruePolicy(IMTAPolicy):
             def accept_new_connection(self, peer):
                 return True
         self.init(policy=TruePolicy())
         self.assertEqual(True, self.command_parser.open)
     
     def test_policy_can_return_false(self):
-        class FalsePolicy(DefaultMTAPolicy):
+        class FalsePolicy(IMTAPolicy):
             def accept_new_connection(self, peer):
                 return False
         self.init(policy=FalsePolicy())
         self.assertEqual(False, self.command_parser.open)
     
     def test_returning_none_is_treated_as_true(self):
-        class NonePolicy(DefaultMTAPolicy):
+        class NonePolicy(IMTAPolicy):
             def accept_new_connection(self, peer):
                 return None
         self.init(policy=NonePolicy())
         self.assertEqual(True, self.command_parser.open)
     
     def test_policy_can_return_custom_codes_as_tuple(self):
-        class CustomCodePolicy(DefaultMTAPolicy):
+        class CustomCodePolicy(IMTAPolicy):
             def accept_new_connection(self, peer):
                 return (False, (553, 'Go away'))
         self.init(policy=CustomCodePolicy())
@@ -66,7 +66,7 @@ class PolicyReturnCodesTest(CommandParserTestCase):
         self.assertEqual('Go away', reply_text)
     
     def test_policy_can_return_multiple_codes(self):
-        class CustomCodePolicy(DefaultMTAPolicy):
+        class CustomCodePolicy(IMTAPolicy):
             def accept_new_connection(self, peer):
                 return (False, (552, ('Go away', 'Evil IP')))
         self.init(policy=CustomCodePolicy())

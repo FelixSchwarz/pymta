@@ -2,7 +2,7 @@
 """Release information about pymta."""
 
 name = "pymta"
-version = "0.2.1"
+version = "0.3dev"
 description = "library to build a custom SMTP server"
 long_description = """pymta is a library to build a custom SMTP server in Python. This is useful if 
 you want to...
@@ -15,6 +15,6 @@ author = "Felix Schwarz"
 email = "felix.schwarz@oss.schwarz.eu"
 url = "http://www.schwarz.eu/opensource/projects/pymta"
 download_url = "http://www.schwarz.eu/opensource/projects/pymta/download/pymta-%s.tar.gz" % version
-copyright = "© 2008 Felix Schwarz"
+copyright = "© 2008-2009 Felix Schwarz"
 license="MIT"
 

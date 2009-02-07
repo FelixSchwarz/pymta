@@ -31,7 +31,7 @@ directly from the svn::
   
   easy_install http://svn.repoze.org/repoze.workflow/trunk/
 
-repoze.workflow requires zope.interface which available via pypi (and 
+repoze.workflow requires zope.interface which is available via pypi (and 
 installable via the package manager for most Linux distributions).
 
 
@@ -70,7 +70,7 @@ Python's **smtpd** is a module which is included in the standard distribution of
 Python for a long time. Though it implements only a *very* basic feature set 
 this module is used as a basis for many smaller SMTP server implementations.
 In the beginning I used this module for my unit tests too but quite soon I had 
-to  realize that the code is quite old and messy and it is nearly impossible to 
+to  realize that the code is old and messy and it is nearly impossible to 
 implement a custom behavior (e.g. reject certain recipients). pymta evolved out 
 of smtpd after multiple refactorings based on the idea to use a simple finite 
 state machine (repoze.workflow).  
@@ -111,10 +111,12 @@ control the correct order of commands sent by the SMTP client.
 
 The main idea of pymta was to make it easy adding custom behavior which is
 considered configuration for 'real' SMTP servers like `Exim <http://www.exim.org>`_.
-Therefore you should look at the DefaultMTAPolicy to add restrictions on certain SMTP
-commands (check recipient addresses, scan the message's content for spam before
-accepting it). In order to authenticate SMTP clients (check username and 
-password) you may implement the IAuthenticator interface.
+The 'pymta.api' module contains classes which define interfaces for 
+customizations. These interfaces are part of the public API so I try to keep 
+them stable in future releases. Use IMTAPolicy to add restrictions on certain 
+SMTP commands (check recipient addresses, scan the message's content for spam before
+accepting it) and IAuthenticator to authenticate SMTP clients (check username 
+and password).
 
 
 Components
@@ -155,15 +157,11 @@ You can instantiate a new server like that::
 Policies
 ========
 
-Every MTA can be supplied with a policy. That policy is asked when a SMTP 
-command was received by the client if the command should be accepted or not. 
-You can use this to check the parameter of the command or make some features 
-only available for selected clients.
+.. autoclass:: pymta.api.IMTAPolicy
+   :members:
 
-All methods in the policy should return a boolean value to express if a command 
-should be accepted. If you need more control you can return a tuple containing
-the boolean decision and either a single-line response as string or list/tuple
-containing the response code and response text::
+Here is a short example how you can implement a custom behavior that checks the
+HELO command given by the client::
 
     def accept_helo(self, helo_string, message):
         # pymta will return the default error message for the given command if 
@@ -181,17 +179,6 @@ containing the response code and response text::
         # 553 Evil IP
         return (False, (553, ('Bad helo string', 'Evil IP'))
 
-In the policy you don't have to care if the commands were given in the correct 
-order (the state machines will take care of that). The only thing is that the 
-message object passed into many policy methods does not contain all data at 
-certain stages (e.g. accept_mail_from can not access the recipients list 
-because that was not submitted yet).
-
-**Interface**
-
-.. autoclass:: pymta.DefaultMTAPolicy
-   :members:
-
 
 Authenticators
 ==============
@@ -200,7 +187,7 @@ Authenticators check if the user's credentials are actually correct. This may
 involve some checking against external subsystems (e.g. a database or a LDAP
 directory). 
 
-.. autoclass:: pymta.IAuthenticator
+.. autoclass:: pymta.api.IAuthenticator
    :members:
 
 Message

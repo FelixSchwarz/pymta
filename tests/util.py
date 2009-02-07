@@ -24,7 +24,8 @@
 
 from unittest import TestCase
 
-from pymta import SMTPSession, IAuthenticator
+from pymta.api import IAuthenticator
+from pymta import SMTPSession
 
 
 class MockCommandParser(object):

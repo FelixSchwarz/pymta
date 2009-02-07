@@ -26,7 +26,7 @@ import base64
 from sets import Set
 from unittest import TestCase
 
-from pymta import IAuthenticator
+from pymta.api import IAuthenticator
 
 from tests.util import CommandParserTestCase, DummyAuthenticator
 

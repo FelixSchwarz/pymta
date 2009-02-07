@@ -25,7 +25,7 @@
 import smtplib
 from unittest import TestCase
 
-from pymta import DefaultMTAPolicy
+from pymta.api import IMTAPolicy
 from pymta.test_util import DebuggingMTA, MTAThread
 
 from tests.util import DummyAuthenticator
@@ -41,7 +41,7 @@ class BasicSMTPTest(TestCase):
         hostname = 'localhost'
         smtpd_listen_port = 8025
         
-        self.mta = DebuggingMTA(hostname, smtpd_listen_port, policy_class=DefaultMTAPolicy, authenticator_class=DummyAuthenticator)
+        self.mta = DebuggingMTA(hostname, smtpd_listen_port, policy_class=IMTAPolicy, authenticator_class=DummyAuthenticator)
         self.mta_thread = MTAThread(self.mta)
         self.mta_thread.start()
         

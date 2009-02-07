@@ -86,7 +86,7 @@ class PythonMTA(asyncore.dispatcher):
         """This method is called when a new message was submitted successfully.
         The MTA is then in charge of delivering the message to the specified 
         recipients.
-        Please not that you can not reject the message anymore at this stage (if
+        Please note that you can not reject the message anymore at this stage (if
         there are problems you must generate a non-delivery report aka bounce). 
         Because there can be multiple active connections at the same time it is 
         a good idea to make the method thread-safe and protect queue access.
