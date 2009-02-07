@@ -230,4 +230,23 @@ some utility classes which are probably helpful in your tests as well...
 .. autoclass:: pymta.test_util.MTAThread
    :members:
 
+License Overview
+================
+
+pymta itself is licensed under the very liberal `MIT license <http://creativecommons.org/licenses/MIT/>`_ 
+(see COPYING.txt in the source archive) so there are virtually no restrictions
+where you can integrate the code.
+
+However, pymta depends on some other packages which come with different licenses.
+In order to ease license auditing, I'll list the other licenses here (no 
+guarantees though, check yourself before you trust):
+
+* `Python <http://www.python.org>`_ uses the 
+  `Python Software Foundation License 2 <http://www.python.org/download/releases/2.4.2/license/>`_ 
+  which is a BSD-style license.
+* `repoze.workflow <http://svn.repoze.org/repoze.workflow/>`_ uses a `BSD-like license without advertising clause <http://svn.repoze.org/repoze.workflow/trunk/LICENSE.txt>`_ which is very similar to the `Zope Public License <http://www.zope.org/Resources/ZPL>`_ without the trademark clause).
+* repoze.workflow depends on `zope.interface <http://pypi.python.org/pypi/zope.interface>`_ 
+  which uses the BSD-like `Zope Public License 2.1 <http://www.zope.org/Resources/ZPL>`_.
+
+I believe that all licenses are GPL compatible.
 
