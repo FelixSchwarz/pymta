@@ -22,11 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import base64
 from sets import Set
-from unittest import TestCase
-
-from pymta.api import IAuthenticator
 
 from tests.util import CommandParserTestCase, DummyAuthenticator
 
@@ -99,8 +95,9 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('MSGDATA', rfc822_msg)
         self.close_connection()
         
-        self.assertEqual(1, len(self.command_parser.messages))
-        msg = self.command_parser.messages[0]
+        received_messages = self.deliverer.received_messages
+        self.assertEqual(1, received_messages.qsize())
+        msg = received_messages.get()
         self.assertEqual('127.0.0.1', msg.peer.remote_ip)
         self.assertEqual(4567, msg.peer.remote_port)
         

@@ -24,8 +24,9 @@
 
 from unittest import TestCase
 
-from pymta.api import IAuthenticator
 from pymta import SMTPSession
+from pymta.api import IAuthenticator
+from pymta.test_util import BlackholeDeliverer
 
 
 class MockCommandParser(object):
@@ -72,7 +73,9 @@ class CommandParserTestCase(TestCase):
     
     def init(self, policy=None, authenticator=None):
         self.command_parser = MockCommandParser()
-        self.session = SMTPSession(command_parser=self.command_parser, 
+        self.deliverer = BlackholeDeliverer()
+        self.session = SMTPSession(command_parser=self.command_parser,
+                                   deliverer=self.deliverer,
                                    policy=policy, authenticator=authenticator)
         self.session.new_connection('127.0.0.1', 4567)
         

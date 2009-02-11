@@ -22,7 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from socket import socket
 from unittest import TestCase
 
 from pymta.command_parser import ParserImplementation
@@ -32,7 +31,8 @@ from pymta.session import SMTPSession
 class CommandParsingTest(TestCase):
 
     def setUp(self):
-        allowed_commands = SMTPSession(command_parser=None).get_all_allowed_internal_commands()
+        session = SMTPSession(command_parser=None, deliverer=None)
+        allowed_commands = session.get_all_allowed_internal_commands()
         self.parser = ParserImplementation(allowed_commands)
     
     def test_parse_command_without_arguments(self):

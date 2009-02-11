@@ -40,6 +40,26 @@ class IAuthenticator(object):
 
 
 
+class IMessageDeliverer(object):
+    """Deliverers take care of the message routing/delivery after a message was
+    accepted (e.g. put it in a mailbox file, forward it to another server, ...).
+    """
+    
+    def new_message_accepted(self, msg):
+        """This method is called when a new message was accepted by the server.
+        Now the MTA is then in charge of delivering the message to the 
+        specified recipients. Please note that you can not reject the message 
+        anymore at this stage (if there are problems you must generate a 
+        non-delivery report aka bounce). 
+        
+        There will be one deliverer instance per client connection so
+        this method may does not have to be thread-safe. However this method 
+        may get called multiple times when the client transmits more than one
+        message for the same connection."""
+        raise NotImplementedError
+
+
+
 class IMTAPolicy(object):
     """Policies can change with behavior of an MTA dynamically (e.g. don't allow 
     relaying unless the client is located within the trusted company network,

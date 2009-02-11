@@ -22,8 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from unittest import TestCase
-
 from pymta.api import IMTAPolicy
 
 from tests.util import CommandParserTestCase, DummyAuthenticator

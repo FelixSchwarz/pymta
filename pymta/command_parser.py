@@ -22,8 +22,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import asynchat
+from Queue import Empty
 import re
+import socket
 
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
@@ -53,10 +54,12 @@ class ParserImplementation(object):
         return command, parameter
 
 
-class SMTPCommandParser(asynchat.async_chat):
-    """This class handles only the actual communication with the client. As soon
-    as a complete command is received, this class will hand everything over to
-    the SMTPSession.
+class SMTPCommandParser(object):
+    """This class is a tiny abstraction layer above the real communication 
+    with the client. It knows about the two basic SMTP modes (sending commands
+    vs. sending message data) and can assemble SMTP-like replies (Code-Message)
+    in a convenient manner. However all handling of SMTP commands will take 
+    place in an upper layer.
     
     The original 'SMTPChannel' class from Python.org handled all communication 
     with asynchat, implemented a extremely simple state machine and processed 
@@ -65,19 +68,16 @@ class SMTPCommandParser(asynchat.async_chat):
     
     LINE_TERMINATOR = '\r\n'
 
-    def __init__(self, server, connection, remote_ip_string, remote_port, policy, 
-                 authenticator=None):
-        asynchat.async_chat.__init__(self, connection)
-        self.set_terminator(self.LINE_TERMINATOR)
+    def __init__(self, channel, remote_ip_string, remote_port, deliverer, 
+                 policy=None, authenticator=None):
+        self._channel = channel
         
-        self._server = server
         self.data = None
+        self.terminator = self.LINE_TERMINATOR
         self._build_state_machine()
         
-        self._connection = connection
-
-        self.session = SMTPSession(command_parser=self, policy=policy, 
-                                   authenticator=authenticator)
+        self.session = SMTPSession(command_parser=self, deliverer=deliverer,
+                                   policy=policy, authenticator=authenticator)
         allowed_commands = self.session.get_all_allowed_internal_commands()
         self._parser = ParserImplementation(allowed_commands)
         self.session.new_connection(remote_ip_string, remote_port)
@@ -87,11 +87,11 @@ class SMTPCommandParser(asynchat.async_chat):
             self.data = None
         
         def _start_receiving_message(from_state, to_state, smtp_command, instance):
-            self.set_terminator('%s.%s' % (self.LINE_TERMINATOR, self.LINE_TERMINATOR))
+            self.terminator = '%s.%s' % (self.LINE_TERMINATOR, self.LINE_TERMINATOR)
             self.data = []
         
         def _finished_receiving_message(from_state, to_state, smtp_command, instance):
-            self.set_terminator(self.LINE_TERMINATOR)
+            self.terminator = self.LINE_TERMINATOR
             self.data = None
         
         self.state = StateMachine('_state', initial_state='commands')
@@ -101,9 +101,9 @@ class SMTPCommandParser(asynchat.async_chat):
         self.state.add('data',     'COMMAND', 'commands', _finished_receiving_message)
     
     def primary_hostname(self):
-        return self._server.primary_hostname
+        # TODO: This should go into a config object!
+        return socket.getfqdn()
     primary_hostname = property(primary_hostname)
-    
     
     # -------------------------------------------------------------------------
     # Communication helper methods
@@ -126,12 +126,7 @@ class SMTPCommandParser(asynchat.async_chat):
         
         if not msg.endswith(self.LINE_TERMINATOR):
             msg += self.LINE_TERMINATOR
-        asynchat.async_chat.push(self, msg)
-    
-    def new_message_received(self, msg):
-        """Called from the SMTPProcessor when a new message was received 
-        successfully."""
-        self._server.new_message_received(msg)
+        self._channel.write(msg)
     
     def collect_incoming_data(self, data):
         if self._state == 'commands':
@@ -163,6 +158,13 @@ class SMTPCommandParser(asynchat.async_chat):
                 lines.append(line)
         return '\n'.join(lines)
     
+    def get_terminator(self):
+        return self._terminator
+    
+    def set_terminator(self, terminator):
+        self._terminator = terminator
+    terminator = property(get_terminator, set_terminator)
+    
     def found_terminator(self):
         input_data = self.data
         if self._state == 'commands':
@@ -173,12 +175,113 @@ class SMTPCommandParser(asynchat.async_chat):
             msgdata = self._assemble_msgdata(input_data)
             self.session.handle_input('MSGDATA', msgdata)
     
-    def handle_close(self):
-        print 'CLOSE!'
-        asynchat.async_chat.handle_close(self)
-    
     def close_when_done(self):
-        print 'CLOSE WHEN DONE!'
-        asynchat.async_chat.close_when_done(self)
+        self._channel.close()
 
+
+class WorkerProcess(object):
+    """The WorkerProcess handles the real communication. with the client. It 
+    does not know anything about the SMTP protocol (besides the fact that it is
+    a line-based protocol)."""
+    
+    def __init__(self, queue, server_socket, deliverer, policy=None, 
+                 authenticator=None):
+        self._queue = queue
+        self._server_socket = server_socket
+        self._deliverer = deliverer
+        self._policy = policy
+        self._authenticator = authenticator
+        
+        self._connection = None
+        self._chatter = None
+    
+    def _wait_for_connection(self):
+        while True:
+            # We want to check periodically if we need to abort
+            try:
+                conn, addr = self._server_socket.accept()
+                break
+            except socket.timeout:
+                try:
+                    new_token = self._queue.get_nowait()
+                    self._queue.put(new_token)
+                    if new_token == None:
+                        return None
+                except Empty:
+                    pass
+        conn.settimeout(socket.getdefaulttimeout())
+        return conn, addr
+    
+    def _get_token_with_timeout(self, seconds):
+        # wait at max 1 second for the token so that we can abort the whole
+        # process in a reasonable time
+        token = None
+        while True:
+            try:
+                token = self._queue.get(timeout=seconds)
+                break
+            except Empty:
+                pass
+        return token
+    
+    def run(self):
+        token = None
+        def have_token():
+            return (token != None)
+        
+        try:
+            while True:
+                token = self._get_token_with_timeout(1)
+                if not have_token():
+                    break
+                assert token == True
+                
+                connection_info = self._wait_for_connection()
+                self._queue.put(token)
+                token = None
+                if connection_info == None:
+                    break
+                self.chat_with_peer(connection_info)
+        finally:
+            if have_token():
+                # If we possess the token, put it back in the queue so other can
+                # continue doing stuff.
+                self._queue.put(True)
+    
+    
+    def chat_with_peer(self, connection_info):
+        self._connection, (remote_ip_string, remote_port) = connection_info
+        self._chatter = SMTPCommandParser(self, remote_ip_string, remote_port, 
+                            self._deliverer, self._policy, self._authenticator)
+        while self.is_connected():
+            data = self.readline()
+            self._chatter.collect_incoming_data(data)
+            self._chatter.found_terminator()
+    
+    def is_connected(self):
+        return (self._connection != None)
+    
+    def readline(self):
+        """Read as much data as possible until a line terminator was 
+        received."""
+        assert self.is_connected()
+        data = ''
+        while True:
+            more_data = self._connection.recv(4096)
+            if more_data.endswith(self._chatter.terminator):
+                data += more_data[:-len(self._chatter.terminator)]
+                break
+            data += more_data
+        return data
+    
+    def close(self):
+        """Closes the connection to the client."""
+        assert self.is_connected()
+        self._connection.close()
+        self._connection = None
+    
+    def write(self, data):
+        """Sends some data to the client."""
+        assert self.is_connected()
+        self._connection.send(data)
 

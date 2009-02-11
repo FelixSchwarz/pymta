@@ -25,7 +25,10 @@
 import base64
 import binascii
 import re
-from sets import Set
+try:
+    set
+except NameError:
+    from sets import Set as set
 
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
@@ -48,7 +51,7 @@ class PyMTAException(Exception):
         self.reply_text = reply_text
 
 class DynamicStateSwitchException(PyMTAException):
-    """Used to implement more complicated state transistions where the next 
+    """Used to implement more complicated state transitions where the next 
     state depends on other values (e.g. where to go after a message was 
     received - depends on ESMTP and AUTH)."""
     def __init__(self, new_state):
@@ -65,15 +68,18 @@ class PolicyDenial(PyMTAException):
 
 class SMTPSession(object):
     """The SMTPSession processes all input data which were extracted from 
-    sockets previously. The idea behind is that this class is decoupled from 
-    asynchat as much as possible and make it really testable.
+    sockets previously. The idea behind this is that this class only knows about
+    different SMTP commands and does not have to know things like command mode
+    and data mode.
     
     The protocol parser will create a new session instance for every new 
     connection so this class does not have to be thread-safe.
     """
     
-    def __init__(self, command_parser, policy=None, authenticator=None):
+    def __init__(self, command_parser, deliverer, policy=None, 
+                 authenticator=None):
         self._command_parser = command_parser
+        self._deliverer = deliverer
         self._policy = policy
         self._authenticator = authenticator
         
@@ -90,7 +96,7 @@ class SMTPSession(object):
         self.state.add(from_state, smtp_command, to_state, handler_function)
     
     def _get_all_real_states(self, including_quit=False):
-        states = Set()
+        states = set()
         for key in self.state.states:
             command_name = key[1]
             new_state = self.state.states[key]
@@ -101,7 +107,7 @@ class SMTPSession(object):
         return states
     
     def get_all_allowed_internal_commands(self):
-        """Returns an interable which includes all allowed commands. This does
+        """Returns an iterable which includes all allowed commands. This does
         not mean that a specific command from the result is executable right now
         in this session state (or that it can be executed at all in this 
         connection).
@@ -109,14 +115,14 @@ class SMTPSession(object):
         Please note that the returned values are /internal/ commands, not SMTP
         commands (use get_all_allowed_smtp_commands for that) so there will be
         'MAIL FROM' instead of 'MAIL'."""
-        states = Set()
+        states = set()
         for command_name, invalid in self._get_all_real_states(including_quit=True):
             if command_name not in ['GREET', 'MSGDATA']:
                 states.add(command_name)
         return states
     
     def get_all_allowed_smtp_commands(self):
-        states = Set()
+        states = set()
         for command_name in self.get_all_allowed_internal_commands():
             command_name = command_name.split(' ')[0]
             states.add(command_name)
@@ -132,7 +138,7 @@ class SMTPSession(object):
     def _add_help_noop_and_quit_transitions(self):
         """HELP, NOOP and QUIT should be possible from everywhere so we 
         need to add these transitions to all states configured so far."""
-        states = Set()
+        states = set()
         for key in self.state.states:
             new_state = self.state.states[key]
             state_name = new_state[0]
@@ -243,7 +249,7 @@ class SMTPSession(object):
                 msg = 'Command "%s" is not allowed here' % smtp_command
                 allowed_transitions = self.state.transitions(self)
                 if len(allowed_transitions) > 0:
-                      msg += ', expected on of %s' % allowed_transitions
+                    msg += ', expected on of %s' % allowed_transitions
                 self.reply(503, msg)
         except InvalidParametersException, e:
             if not e.response_sent:
@@ -414,7 +420,7 @@ class SMTPSession(object):
         if decision:
             self._message.msg_data = msg_data
             new_message = self._copy_basic_settings(self._message)
-            self._command_parser.new_message_received(self._message)
+            self._deliverer.new_message_accepted(self._message)
             if not response_sent:
                 self.reply(250, 'OK')
                 # Now we must not loose the message anymore!

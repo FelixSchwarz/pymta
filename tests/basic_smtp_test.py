@@ -26,7 +26,7 @@ import smtplib
 from unittest import TestCase
 
 from pymta.api import IMTAPolicy
-from pymta.test_util import DebuggingMTA, MTAThread
+from pymta.test_util import BlackholeDeliverer, DebuggingMTA, MTAThread
 
 from tests.util import DummyAuthenticator
 
@@ -41,7 +41,9 @@ class BasicSMTPTest(TestCase):
         hostname = 'localhost'
         smtpd_listen_port = 8025
         
-        self.mta = DebuggingMTA(hostname, smtpd_listen_port, policy_class=IMTAPolicy, authenticator_class=DummyAuthenticator)
+        self.deliverer = BlackholeDeliverer
+        self.mta = DebuggingMTA(hostname, smtpd_listen_port, self.deliverer, 
+                                policy_class=IMTAPolicy, authenticator_class=DummyAuthenticator)
         self.mta_thread = MTAThread(self.mta)
         self.mta_thread.start()
         
@@ -60,8 +62,12 @@ class BasicSMTPTest(TestCase):
         code, replytext = self.connection.helo('foo')
         self.assertEqual(250, code)
     
+    
+    def _get_received_messages(self):
+        return self.deliverer.received_messages
+    
     def _check_received_mail(self, expected_recipients, expected_helo=None):
-        queue = self.mta.queue
+        queue = self._get_received_messages()
         self.assertEqual(1, queue.qsize())
         msg = queue.get()
         if expected_helo != None:
@@ -115,7 +121,7 @@ class BasicSMTPTest(TestCase):
         self.connection.sendmail('x@example.com', 'foo@example.com', rfc822_msg)
         self.connection.sendmail('x@example.com', 'bar@example.com', rfc822_msg)
         
-        queue = self.mta.queue
+        queue = self._get_received_messages()
         self.assertEqual(2, queue.qsize())
         first_msg = queue.get()
         self.assertNotEqual(None, first_msg.smtp_helo)
@@ -132,7 +138,7 @@ class BasicSMTPTest(TestCase):
         self.connection.sendmail('from@example.com', 'foo@example.com', msg)
         self.connection.quit()
         
-        queue = self.mta.queue
+        queue = self._get_received_messages()
         self.assertEqual(1, queue.qsize())
         received_msg = queue.get()
         self.assertEqual(msg, received_msg.msg_data)
