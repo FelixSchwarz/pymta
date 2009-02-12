@@ -27,7 +27,7 @@ Python 2.4 and 2.5).
 
 Currently pymta is only tested with Python 2.5 but probably 2.4 works too. The 
 goal is to make pymta compatible with Python 2.3-2.6. With Python 2.3 you can 
-only serve one connection at a time.
+only serve one connection at a time due to the lack of a multiprocessing module.
 
 repoze.workflow
 ---------------
@@ -125,7 +125,8 @@ smtpd so the server does not support any kind of recipient verification.
 scratch with a quite clean design (compared to Python's smtpd) although it only
 implements the absolute minimum of SMTP and many things like the command parsing
 are just hard-coded. On the other hand, the server's behavior can be changed by
-implementing a custom strategy class.
+implementing a custom strategy class. `Trac included an extended version <http://trac.edgewall.org/browser/trunk/trac/tests/notification.py>`_
+of smtps in its test suite.
 
 
 Architectural Overview
@@ -152,7 +153,7 @@ received messages.
 
 Problems with asynchronous architectures
 ========================================
-The two most important SMTP implementation in Python (smtpd and Twisted Mail) 
+The two most important SMTP implementations in Python (smtpd and Twisted Mail) 
 both use an asynchronous architecture so they can serve multiple connections at
 the same time without the need to start multiple processes or threads. Because
 of this they can avoid the increased overall complexity due to locking issues 
@@ -173,9 +174,9 @@ However there are some drawbacks with the asynchronous approach:
   popular ORMs like `SQLAlchemy <http://www.sqlalchemy.org/>`_ do not support 
   their layer.
 
-Given these conditions it is a bad design choice to use an asynchronous
-architecture for a SMTP server library which should be easily hackable to 
-handle even uncommon cases.
+Given these conditions IMHO it looks like a bad design choice to use an 
+asynchronous architecture for a SMTP server library which should be easily 
+hackable to handle even uncommon cases.
 
 
 Components

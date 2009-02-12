@@ -68,7 +68,11 @@ class DebuggingMTA(PythonMTA):
 
 class MTAThread(threading.Thread):
     """This class runs a PythonMTA in a separate thread which is helpful for 
-    unit testing."""
+    unit testing.
+    
+    Attention: Do not use this class together with multiprocessing! 
+    http://www.viraj.org/b2evolution/blogs/index.php/2007/02/10/threads_and_fork_a_bad_idea
+    """
     
     def __init__(self, server):
         threading.Thread.__init__(self)

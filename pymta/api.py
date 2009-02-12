@@ -69,7 +69,7 @@ class IMTAPolicy(object):
     configuration file.
     
     A policy does not change the SMTP implementation itself (the state machine) 
-    but can send out custom replies to the client.A policy doesn't have to care 
+    but can send out custom replies to the client. A policy doesn't have to care 
     if the commands were given in the correct order (the state machines will 
     take care of that). The only thing is that the message object passed into 
     many policy methods does not contain all data at certain stages (e.g. 
