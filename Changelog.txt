@@ -2,9 +2,9 @@
 Changelog for pymta
 
 0.3dev (February 2009)
+ - Switch to process-based architecture, got rid of asyncore
  - API documentation is now auto-generated
  - Renamed DefaultMTAPolicy to IMTAPolicy and moved all interfaces to pymta.api
- - Switch to process-based architecture, got rid of asyncore
 
 0.2.1 (19.12.2008)
  - wrote documentation

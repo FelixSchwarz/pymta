@@ -34,16 +34,8 @@ __all__ = ['PythonMTA']
 
 def forked_child(queue, server_socket, deliverer_class, policy_class, 
                  authenticator_class):
-    def _get_instance_from_class(class_reference):
-        instance = None
-        if class_reference != None:
-            instance = class_reference()
-        return instance
-    
-    deliverer = _get_instance_from_class(deliverer_class)
-    policy = _get_instance_from_class(policy_class)
-    authenticator = _get_instance_from_class(authenticator_class)
-    child = WorkerProcess(queue, server_socket, deliverer, policy, authenticator)
+    child = WorkerProcess(queue, server_socket, deliverer_class, policy_class, 
+                          authenticator_class)
     child.run()
 
 
@@ -70,6 +62,7 @@ class PythonMTA(object):
         self._authenticator_class = authenticator_class
         
         self._queue = None
+        self._processes = []
         self._shutdown_server = Event()
     
     def _build_server_socket(self):
@@ -113,14 +106,13 @@ class PythonMTA(object):
         self._queue.put(True)
         server_socket = self._build_server_socket()
         if use_multiprocessing:
-            p = self._start_new_worker_process(server_socket)
-#            processes = []
-#            for i in range(5):
-#                p = self._start_new_worker_process(server_socket)
-#                processes.append(p)
+            for i in range(5):
+                p = self._start_new_worker_process(server_socket)
+                self._processes.append(p)
             while not self._shutdown_server.isSet():
                 time.sleep(1)
-            p.join()
+            for process in self._processes:
+                process.join()
         else:
             forked_child(*self._get_child_args(server_socket))
         server_socket.close()
@@ -132,6 +124,4 @@ class PythonMTA(object):
         method will block for this many seconds at most."""
         self._queue.put(None)
         self._shutdown_server.set()
-        # TODO:
-        #p.join(timeout_seconds)
 

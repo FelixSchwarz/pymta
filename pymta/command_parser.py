@@ -184,16 +184,22 @@ class WorkerProcess(object):
     does not know anything about the SMTP protocol (besides the fact that it is
     a line-based protocol)."""
     
-    def __init__(self, queue, server_socket, deliverer, policy=None, 
-                 authenticator=None):
+    def __init__(self, queue, server_socket, deliverer_class, policy_class=None,
+                 authenticator_class=None):
         self._queue = queue
         self._server_socket = server_socket
-        self._deliverer = deliverer
-        self._policy = policy
-        self._authenticator = authenticator
+        self._deliverer = self._get_instance_from_class(deliverer_class)
+        self._policy = self._get_instance_from_class(policy_class)
+        self._authenticator = self._get_instance_from_class(authenticator_class)
         
         self._connection = None
         self._chatter = None
+    
+    def _get_instance_from_class(self, class_reference):
+        instance = None
+        if class_reference != None:
+            instance = class_reference()
+        return instance
     
     def _wait_for_connection(self):
         while True:
