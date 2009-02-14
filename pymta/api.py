@@ -75,8 +75,8 @@ class IMTAPolicy(object):
     many policy methods does not contain all data at certain stages (e.g. 
     accept_mail_from can not access the recipients list because that was not 
     submitted yet).
-
-    'IMTAPolicy' provides a very permissive interface (all commands are 
+    
+    'IMTAPolicy' provides a very permissive policy (all commands are 
     accepted) from which you can derive custom policies. Its methods are usually
     named 'accept_<SMTP command name>'.
     
@@ -90,7 +90,7 @@ class IMTAPolicy(object):
     decision is the boolean known from the last paragraph. The reply code is an
     integer which should a be a valid SMTP code. response is either a basestring
     with a custom message or an iterable of basestrings (in case you need to 
-    return a multiline reply)."""
+    return a multi-line reply)."""
     
     def accept_new_connection(self, peer):
         """This method is called directly after a new connection is received. 
@@ -98,6 +98,16 @@ class IMTAPolicy(object):
         SMTP server. If it declines, the connection will be closed 
         immediately."""
         return True
+    
+    def max_message_size(self, peer):
+        """Return the maximum size (in bytes) for messages from this peer. When
+        this method returns an integer, there pymta will check the actual 
+        message size after the message was received (before the accept_msgdata
+        method is called) and will respond with the appropriate error message if
+        necessary.
+        If you return None, no size limit will be enforced by pymta (however you
+        can always reject a message using accept_msgdata()."""
+        return None
     
     def accept_helo(self, helo_string, message):
         """Decides if the HELO command with the given helo_name should be 

@@ -404,6 +404,15 @@ class SMTPSession(object):
         elif not decision:
             raise PolicyDenial(response_sent)
     
+    def _check_size_restrictions(self, msg_data):
+        if self._policy is not None:
+            max_message_size = self._policy.max_message_size(self._message.peer)
+            if (max_message_size is not None):
+                msg_too_big = (len(msg_data) > int(max_message_size))
+                if msg_too_big:
+                    msg = 'message exceeds fixed maximum message size'
+                    raise PolicyDenial(False, 552, msg)
+    
     def _copy_basic_settings(self, msg):
         peer = self._message.peer
         new_message = Message(peer=Peer(peer.remote_ip, peer.remote_port), 
@@ -416,6 +425,7 @@ class SMTPSession(object):
         whole message was received (multi-line DATA command is completed)."""
         msg_data = self._command_arguments
         self._command_parser.switch_to_command_mode()
+        self._check_size_restrictions(msg_data)
         decision, response_sent = self.is_allowed('accept_msgdata', msg_data, self._message)
         if decision:
             self._message.msg_data = msg_data

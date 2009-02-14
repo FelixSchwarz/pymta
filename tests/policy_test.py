@@ -115,5 +115,22 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('DATA', expected_first_digit=3)
         rfc822_msg = 'Subject: Test\n\nJust testing...\n'
         self.send('MSGDATA', rfc822_msg, expected_first_digit=5)
+    
+    
+    def test_size_limit_messages_can_be_rejected(self):
+        class FalsePolicy(IMTAPolicy):
+            def max_message_size(self, peer):
+                return 100
+        self.init(policy=FalsePolicy())
+        self.send('HELO', 'foo.example.com')
+        self.send('MAIL FROM', 'foo@example.com')
+        self.send('RCPT TO', 'to@example.com')
+        self.send('DATA', expected_first_digit=3)
+        big_data_chunk = ('x'*70 + '\n') * 1500
+        rfc822_msg = 'Subject: Test\n\nJust testing...\n' + big_data_chunk
+        (code, reply_text) = self.send('MSGDATA', rfc822_msg, 
+                                       expected_first_digit=5)
+        self.assertEqual(552, code)
+        self.assertEqual('message exceeds fixed maximum message size', reply_text)
 
 
