@@ -77,7 +77,7 @@ class BasicSMTPTest(TestCase):
         msg = queue.get()
         if expected_helo != None:
             self.assertEqual('foo', msg.smtp_helo)
-        self.assertEqual('<from@example.com>', msg.smtp_from)
+        self.assertEqual('from@example.com', msg.smtp_from)
         self.assertEqual(expected_recipients, msg.smtp_to)
         self.assertEqual(rfc822_msg, msg.msg_data)
         return msg
@@ -105,7 +105,7 @@ class BasicSMTPTest(TestCase):
     def test_multiple_recipients(self):
         """Check that we can send an email to multiple recipients at once."""
         recipients = ['foo@example.com', 'bar@example.com']
-        self.connection.sendmail('from@example.com>', recipients, rfc822_msg)
+        self.connection.sendmail('from@example.com', recipients, rfc822_msg)
         self.connection.quit()
         self._check_received_mail(recipients)
     
@@ -130,7 +130,7 @@ class BasicSMTPTest(TestCase):
         self.assertEqual(2, queue.qsize())
         first_msg = queue.get()
         self.assertNotEqual(None, first_msg.smtp_helo)
-        self.assertEqual('<x@example.com>', first_msg.smtp_from)
+        self.assertEqual('x@example.com', first_msg.smtp_from)
         
         second_msg = queue.get()
         self.assertEqual(first_msg.smtp_helo, second_msg.smtp_helo)
@@ -164,9 +164,25 @@ class BasicSMTPTest(TestCase):
         try:
             self.connection.sendmail('from@example.com', 'foo@example.com', msg)
             self.fail('SMTPDataError not thrown')
-        except smtplib.SMTPDataError, e:
+        except (smtplib.SMTPDataError, smtplib.SMTPSenderRefused), e:
+            # Depending on when the protocol used (ESMTP with SIZE extension or
+            # plain old SMTP) and when the server checks the message size (after
+            # MAIL FROM or only when the message was transmitted completely), 
+            # the error message may differ.
+            # Unfortunately Python's smtplib raises SMTPSenderRefused even if 
+            # the message was rejected due to size restrictions after issuing 
+            # MAIL FROM with size verb
             self.assertEqual(552, e.smtp_code)
             self.assertEqual('message exceeds fixed maximum message size', 
                              e.smtp_error)
+    
+    def test_check_foobar(self):
+        """Check that there is transparency support for lines starting with a 
+        dot in the message body (RFC 821, section 4.5.2)."""
+        msg = rfc822_msg + '\n.Bar\nFoo'
+        self.connection.sendmail('from@example.com', 'foo@example.com', msg)
+        self.connection.quit()
+        self.connection.connect(self.hostname, self.listen_port)
+        self.connection.sendmail('from@example.com', 'foo@example.com', msg)
 
 

@@ -90,6 +90,7 @@ class SMTPSession(object):
         self._build_state_machine()
     
     # -------------------------------------------------------------------------
+    # State machine building
     
     def _add_state(self, from_state, smtp_command, to_state):
         handler_function = self._dispatch_commands
@@ -161,7 +162,7 @@ class SMTPSession(object):
         self._add_state('initialized', 'MAIL FROM',  'sender_known')
         self._add_state('esmtp_initialized', 'MAIL FROM',  'sender_known')
         
-        self._add_state('esmtp_initialized', 'AUTH PLAIN',  'authenticated')
+        self._add_state('esmtp_initialized', 'AUTH PLAIN', 'authenticated')
         self._add_state('authenticated', 'MAIL FROM',  'sender_known')
         # ----
         
@@ -174,6 +175,19 @@ class SMTPSession(object):
         self._add_rset_transitions()
         self.valid_commands = [command for from_state, command in self.state.states]
     
+    # -------------------------------------------------------------------------
+    
+    def get_ehlo_lines(self):
+        """Return the capabilities to be advertised after EHLO."""
+        lines = []
+        if self._authenticator != None:
+            # TODO: Make the authentication pluggable but separate mechanism 
+            # from user look-up.
+            lines.append('AUTH PLAIN')
+        if self._policy != None:
+            lines.extend(self._policy.ehlo_lines(self._message.peer))
+        lines.append('HELP')
+        return lines
     
     def _set_size_restrictions(self):
         """Set the maximum allowed message in the underlying layer so that big 
@@ -340,7 +354,8 @@ class SMTPSession(object):
         self._message.smtp_helo = helo_string
         if not response_sent:
             primary_hostname = self._command_parser.primary_hostname
-            self.multiline_reply(250, (primary_hostname, 'AUTH PLAIN'))
+            lines = [primary_hostname] + self.get_ehlo_lines()
+            self.multiline_reply(250, lines)
     
     def smtp_ehlo(self):
         self._process_helo_or_ehlo('accept_ehlo', self._reply_to_ehlo)
@@ -375,10 +390,46 @@ class SMTPSession(object):
             else:
                 raise InvalidParametersException(credentials)
     
+    def _split_mail_from_parameter(self, data):
+        sender = data
+        extensions = {}
+        
+        # TODO: case insensitivity of extension names
+        verb_regex = re.compile('^\s*<(.*)>(?:\s*(\S+)\s*)*\s*$')
+        match = verb_regex.search(data)
+        if match:
+            sender = match.group(1)
+            extension_string = match.group(2)
+            if extension_string is not None:
+                for extension in re.split('\s+', extension_string):
+                    if '=' in extension:
+                        name, parameter = extension.split('=', 1)
+                        extensions[name] = parameter
+                    else:
+                        extensions[extension] = True
+        return (sender, extensions)
+    
+    def _check_mail_extensions(self, extensions):
+        if 'size' in extensions:
+            # TODO: protect against non-numeric size!
+            announced_size = int(extensions['size'])
+            max_message_size = self._get_max_message_size_from_policy()
+            if max_message_size != None:
+                if announced_size > max_message_size:
+                    self.reply(552, 'message exceeds fixed maximum message size')
+                    raise InvalidParametersException('MAIL FROM', response_sent=True)
+    
     def smtp_mail_from(self):
-        sender = self._command_arguments
+        data = self._command_arguments
+        sender, extensions = self._split_mail_from_parameter(data)
         # TODO: Check for good email address!
         # TODO: Check for single email address!
+        uses_esmtp = (self._state in ['esmtp_initialized', 'authenticated'])
+        if uses_esmtp:
+            self._check_mail_extensions(extensions)
+        elif len(extensions) > 0:
+            self.reply(501, 'No SMTP extensions allowed for plain SMTP')
+            raise InvalidParametersException('MAIL', response_sent=True)
         decision, response_sent = self.is_allowed('accept_from', sender, self._message)
         if decision:
             self._message.smtp_from = sender

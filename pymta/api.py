@@ -109,6 +109,15 @@ class IMTAPolicy(object):
         can always reject a message using accept_msgdata()."""
         return None
     
+    def ehlo_lines(self, peer):
+        """Return an iterable for SMTP extensions to advertise after EHLO.
+        By default support for SMTP SIZE extension will be announced if you set
+        a max message size."""
+        max_size = self.max_message_size(peer)
+        if max_size != None:
+            return ('SIZE %d' % max_size,)
+        return ()
+    
     def accept_helo(self, helo_string, message):
         """Decides if the HELO command with the given helo_name should be 
         accepted."""
