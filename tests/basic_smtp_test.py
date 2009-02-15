@@ -2,7 +2,7 @@
 # 
 # The MIT License
 # 
-# Copyright (c) 2008 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,30 +38,35 @@ class BasicSMTPTest(TestCase):
     """This test uses the SMTP protocol to check the whole server."""
 
     def setUp(self):
-        hostname = 'localhost'
-        smtpd_listen_port = 8025
-        
+        self.hostname = 'localhost'
+        self.listen_port = 8025
+        self.init_mta()
+    
+    def init_mta(self, policy_class=IMTAPolicy):
         self.deliverer = BlackholeDeliverer
-        self.mta = DebuggingMTA(hostname, smtpd_listen_port, self.deliverer, 
-                                policy_class=IMTAPolicy, authenticator_class=DummyAuthenticator)
+        self.mta = DebuggingMTA(self.hostname, self.listen_port, self.deliverer,
+                                policy_class=policy_class, 
+                                authenticator_class=DummyAuthenticator)
         self.mta_thread = MTAThread(self.mta)
         self.mta_thread.start()
         
         self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
-        self.connection.connect(hostname, smtpd_listen_port)
+        self.connection.connect(self.hostname, self.listen_port)
     
-    def tearDown(self):
+    def stop_mta(self):
         try:
             self.connection.quit()
         except smtplib.SMTPServerDisconnected:
             pass
         self.mta_thread.stop()
     
+    def tearDown(self):
+        self.stop_mta()
+    
     def test_helo(self):
         code, replytext = self.connection.helo('foo')
         self.assertEqual(250, code)
-    
     
     def _get_received_messages(self):
         return self.deliverer.received_messages
@@ -142,5 +147,26 @@ class BasicSMTPTest(TestCase):
         self.assertEqual(1, queue.qsize())
         received_msg = queue.get()
         self.assertEqual(msg, received_msg.msg_data)
+    
+    def test_big_messages_are_rejected(self):
+        """Check that messages which exceed the configured maximum message size
+        are rejected. This tests all the code setting the maximum allowed input
+        size in the transport layer."""
+        class RestrictedSizePolicy(IMTAPolicy):
+            def max_message_size(self, peer):
+                return 100
+        
+        self.stop_mta()
+        self.init_mta(RestrictedSizePolicy)
+        
+        big_data_chunk = ('x'*70 + '\n') * 1500
+        msg = rfc822_msg + big_data_chunk
+        try:
+            self.connection.sendmail('from@example.com', 'foo@example.com', msg)
+            self.fail('SMTPDataError not thrown')
+        except smtplib.SMTPDataError, e:
+            self.assertEqual(552, e.smtp_code)
+            self.assertEqual('message exceeds fixed maximum message size', 
+                             e.smtp_error)
 
 

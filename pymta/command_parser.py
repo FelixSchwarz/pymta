@@ -2,7 +2,7 @@
 #
 # The MIT License
 # 
-# Copyright (c) 2008 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -137,6 +137,18 @@ class SMTPCommandParser(object):
             # to our payload.
             self.data.append(data)
     
+    def input_exceeds_limits(self):
+        """Called from the underlying transport layer if the client input 
+        exceeded the configured maximum message size."""
+        self.session.input_exceeds_limits()
+        self.switch_to_command_mode()
+    
+    def set_maximum_message_size(self, max_size):
+        """Set the maximum allowed size (in bytes) of a command/message in the
+        underlying transport layer so that big messages are not stored in memory
+        before they are rejected."""
+        self._channel.set_max_input_size(max_size)
+    
     def switch_to_command_mode(self):
         """Called from the SMTPSession when a message was received and the 
         client is expected to send single commands again."""
@@ -194,6 +206,8 @@ class WorkerProcess(object):
         
         self._connection = None
         self._chatter = None
+        self._max_size = None
+        self._input_too_big = False
     
     def _get_instance_from_class(self, class_reference):
         instance = None
@@ -254,6 +268,13 @@ class WorkerProcess(object):
                 # continue doing stuff.
                 self._queue.put(True)
     
+    def set_max_input_size(self, max_size):
+        """Set the maximum size of client input (in bytes) before the input is
+        discarded. When the client finished transmitting a message which was
+        too big, the 'input_exceeds_limits' method is called on the chatter 
+        which is responsible for notifying the peer.
+        Setting a maximum size of None disables any size-checking."""
+        self._max_size = max_size
     
     def chat_with_peer(self, connection_info):
         self._connection, (remote_ip_string, remote_port) = connection_info
@@ -261,8 +282,12 @@ class WorkerProcess(object):
                             self._deliverer, self._policy, self._authenticator)
         while self.is_connected():
             data = self.readline()
-            self._chatter.collect_incoming_data(data)
-            self._chatter.found_terminator()
+            if not self._input_too_big:
+                self._chatter.collect_incoming_data(data)
+                self._chatter.found_terminator()
+            else:
+                self._chatter.input_exceeds_limits()
+                self._input_too_big = False
     
     def is_connected(self):
         return (self._connection != None)
@@ -272,12 +297,17 @@ class WorkerProcess(object):
         received."""
         assert self.is_connected()
         data = ''
+        self._input_too_big = False
         while True:
             more_data = self._connection.recv(4096)
             if more_data.endswith(self._chatter.terminator):
                 data += more_data[:-len(self._chatter.terminator)]
                 break
-            data += more_data
+            elif not self._input_too_big:
+                data += more_data
+            if (self._max_size is not None) and (len(data) > self._max_size):
+                self._input_too_big = True
+                data = ''
         return data
     
     def close(self):

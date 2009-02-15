@@ -2,7 +2,7 @@
 #
 # The MIT License
 # 
-# Copyright (c) 2008 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -175,6 +175,12 @@ class SMTPSession(object):
         self.valid_commands = [command for from_state, command in self.state.states]
     
     
+    def _set_size_restrictions(self):
+        """Set the maximum allowed message in the underlying layer so that big 
+        messages are not hold in memory before they are rejected."""
+        max_message_size = self._get_max_message_size_from_policy()
+        self._command_parser.set_maximum_message_size(max_message_size)
+    
     def _dispatch_commands(self, from_state, to_state, smtp_command, ob):
         """This method dispatches a SMTP command to the appropriate handler 
         method. It is called after a new command was received and a valid 
@@ -227,6 +233,7 @@ class SMTPSession(object):
         if decision:
             if not response_sent:
                 self.handle_input('greet')
+            self._set_size_restrictions()
         else:
             if not response_sent:
                 self.reply(554, 'SMTP service not available')
@@ -256,16 +263,19 @@ class SMTPSession(object):
                 msg = 'Syntactically invalid %s argument(s)' % smtp_command
                 self.reply(501, msg)
         except PolicyDenial, e:
-            print 'checking for response sent', e.response_sent
             if not e.response_sent:
                 self.reply(e.code, e.reply_text)
         self._command_arguments = None
     
+    def input_exceeds_limits(self):
+        """Called when the client sent a message that exceeded the maximum 
+        size."""
+        self.reply(552, 'message exceeds fixed maximum message size')
     
     def reply(self, code, text):
         """This method returns a message to the client (actually the session 
         object is responsible of actually pushing the bits)."""
-        print 'code, text', code, text
+        #print 'code, text', code, text
         self._command_parser.push(code, text)
     
     
@@ -404,14 +414,19 @@ class SMTPSession(object):
         elif not decision:
             raise PolicyDenial(response_sent)
     
-    def _check_size_restrictions(self, msg_data):
-        if self._policy is not None:
+    def _get_max_message_size_from_policy(self):
+        max_message_size = None
+        if (self._policy is not None) and (self._message.peer is not None):
             max_message_size = self._policy.max_message_size(self._message.peer)
-            if (max_message_size is not None):
-                msg_too_big = (len(msg_data) > int(max_message_size))
-                if msg_too_big:
-                    msg = 'message exceeds fixed maximum message size'
-                    raise PolicyDenial(False, 552, msg)
+        return max_message_size
+    
+    def _check_size_restrictions(self, msg_data):
+        max_message_size = self._get_max_message_size_from_policy()
+        if (max_message_size is not None):
+            msg_too_big = (len(msg_data) > int(max_message_size))
+            if msg_too_big:
+                msg = 'message exceeds fixed maximum message size'
+                raise PolicyDenial(False, 552, msg)
     
     def _copy_basic_settings(self, msg):
         peer = self._message.peer

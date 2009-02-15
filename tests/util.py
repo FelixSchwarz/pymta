@@ -2,7 +2,7 @@
 # 
 # The MIT License
 # 
-# Copyright (c) 2008 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,9 @@ class MockCommandParser(object):
         self.replies = []
         self.messages = []
         self.open = True
+    
+    def set_maximum_message_size(self, max_size):
+        pass
     
     def push(self, code, text):
         self.replies.append((code, text))
