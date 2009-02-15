@@ -25,7 +25,7 @@ considered part of the public API which should be as stable as possible."""
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-__all__ = ['IAuthenticator', 'IMTAPolicy']
+__all__ = ['IAuthenticator', 'IMessageDeliverer', 'IMTAPolicy']
 
 
 class IAuthenticator(object):

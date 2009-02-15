@@ -298,7 +298,15 @@ some utility classes which are probably helpful in your tests as well...
 .. autoclass:: pymta.test_util.MTAThread
    :members:
 
-# TODO: Show an example/walk-through how to use the test utilities in a unit test
+
+
+Example SMTP server application
+===============================
+
+In the examples directory you find a pymta-based implementation of a debugging 
+server that behaves like `Python's DebuggingServer <http://docs.python.org/library/smtpd.html#debuggingserver-objects>`_:
+All received messages will be printed to STDOUT. Hopefully it can serve as a 
+short reference how to write very simple pymta-based servers too.
 
 
 License Overview
