@@ -191,6 +191,12 @@ class SMTPCommandParser(object):
         self._channel.close()
 
 
+# TODO: Make this inherit from pymtaexception, move that into api and make a new
+# smtpprotocolviolationError in smtpsession.
+class ClientDisconnectedError(Exception):
+    pass
+
+
 class WorkerProcess(object):
     """The WorkerProcess handles the real communication. with the client. It 
     does not know anything about the SMTP protocol (besides the fact that it is
@@ -281,13 +287,18 @@ class WorkerProcess(object):
         self._chatter = SMTPCommandParser(self, remote_ip_string, remote_port, 
                             self._deliverer, self._policy, self._authenticator)
         while self.is_connected():
-            data = self.readline()
-            if not self._input_too_big:
-                self._chatter.collect_incoming_data(data)
-                self._chatter.found_terminator()
-            else:
-                self._chatter.input_exceeds_limits()
-                self._input_too_big = False
+            try:
+                data = self.readline()
+                if not self._input_too_big:
+                    self._chatter.collect_incoming_data(data)
+                    self._chatter.found_terminator()
+                else:
+                    self._chatter.input_exceeds_limits()
+                    self._input_too_big = False
+            except ClientDisconnectedError:
+                if self.is_connected():
+                    self._connection.close()
+                    self._connection = None
     
     def is_connected(self):
         return (self._connection != None)
@@ -300,7 +311,9 @@ class WorkerProcess(object):
         self._input_too_big = False
         while True:
             more_data = self._connection.recv(4096)
-            if more_data.endswith(self._chatter.terminator):
+            if more_data == '':
+                raise ClientDisconnectedError()
+            elif more_data.endswith(self._chatter.terminator):
                 data += more_data[:-len(self._chatter.terminator)]
                 break
             elif not self._input_too_big:

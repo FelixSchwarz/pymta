@@ -23,6 +23,7 @@
 # THE SOFTWARE.
 
 import smtplib
+import socket
 from unittest import TestCase
 
 from pymta.api import IMTAPolicy
@@ -176,13 +177,24 @@ class BasicSMTPTest(TestCase):
             self.assertEqual('message exceeds fixed maximum message size', 
                              e.smtp_error)
     
-    def test_check_foobar(self):
-        """Check that there is transparency support for lines starting with a 
-        dot in the message body (RFC 821, section 4.5.2)."""
-        msg = rfc822_msg + '\n.Bar\nFoo'
-        self.connection.sendmail('from@example.com', 'foo@example.com', msg)
-        self.connection.quit()
-        self.connection.connect(self.hostname, self.listen_port)
-        self.connection.sendmail('from@example.com', 'foo@example.com', msg)
+    def test_workerprocess_detects_closed_connections(self):
+        """Check that the WorkerProcess gracefully handles connections which are
+        closed without QUIT. This can happen due to network problems or 
+        unfriendly clients."""
+        self.connection.helo('foo')
+        self.connection.close()
+        
+        # In 0.3 the WorkerProcess would hang and start to eat up the whole CPU
+        # so we need to set a sensible timeout so that this test will fail with
+        # an appropriate exception.
+        # On a normal system we should be able to reconnect after a dropped
+        # connection within two seconds under all circumstances.
+        old_default = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(2)
+        try:
+            self.connection.connect(self.hostname, self.listen_port)
+        finally:
+            socket.setdefaulttimeout(old_default)
+
 
 

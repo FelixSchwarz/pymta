@@ -1,7 +1,10 @@
 
 Changelog for pymta
 
-0.3 (February 2009)
+0.3.1 (XX.02.2009)
+ - Fixed bug which caused hang after unexpected connection drop by client
+
+0.3 (15.02.2009)
  - Switch to process-based architecture, got rid of asyncore
  - Support for size-limitations of messages, huge messages will not be stored in
    memory if they will be rejected anyway (denial of service prevention)
