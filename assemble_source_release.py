@@ -10,10 +10,9 @@ import tempfile
 
 def build_documentation(project_dir):
     doc_dir = os.path.join(project_dir, 'docs')
-    temp_file, temp_name = tempfile.mkstemp()
+    temp_file = tempfile.TemporaryFile()
     # We don't need any output on stdout
     subprocess.call(['make', 'html'], cwd=doc_dir, stdout=temp_file)
-    os.unlink(temp_name)
 
 def make_relative_filename(topdir, filename):
     assert filename.startswith(topdir)
