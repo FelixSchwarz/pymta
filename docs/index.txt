@@ -309,6 +309,39 @@ All received messages will be printed to STDOUT. Hopefully it can serve as a
 short reference how to write very simple pymta-based servers too.
 
 
+
+Speed
+=====
+
+If you want to use pymta for a real SMTP server, you should not be concerned too
+much about speed. If you go really for a high-volume setup with several million
+messages per day and hundreds of simultaneous connections, you should tune one 
+of the well-known SMTP servers like Exim, Postfix or sendmail to get the maximum
+performance. However, I measured theoretical peak performance using 
+`Postal 0.70 <http://doc.coker.com.au/projects/postal/>`_ to give you some 
+theoretical figures.
+
+Environment and benchmark settings:
+
+ * System: Fedora 10 with an AMD x2 4200 (2.2 GHz), Python 2.5
+ * pymta: DebuggingServer with NullDeliverer and no policy.
+ * postal: 4 threads, no SSL connections, one message per connection (defaults)
+
+With that configuration I got something between 1540-2270 messages per minute
+(median 1879 messages) which is actually quite low. Many real SMTP servers would
+deliver something between 5,000-10,000 messages per minute in a comparable 
+setting [#]_. During my measurements the system load was barely noticable (below
+5%) so I guess most of the time is lost waiting for locks. Using a really fast 
+IPC mechanism or a custom PythonMTA implementation that uses the os.fork would
+probably increase the throughput by quite easily.
+
+.. [#] However, as soon you add some more complicated database queries or spam 
+       and virus checks to that, the real throughput will decrease dramatically
+       (even if the scanning takes only 0.1 seconds per message you won't 
+       exceed 600 messages per minute). In real setups the bare SMTP speed does
+       not matter that much.
+
+
 License Overview
 ================
 
@@ -323,11 +356,11 @@ guarantees though, check yourself before you trust):
 * `Python <http://www.python.org>`_ uses the 
   `Python Software Foundation License 2 <http://www.python.org/download/releases/2.4.2/license/>`_ 
   which is a BSD-style license.
-* `repoze.workflow <http://svn.repoze.org/repoze.workflow/>`_ uses a `BSD-like license without advertising clause <http://svn.repoze.org/repoze.workflow/trunk/LICENSE.txt>`_ which is very similar to the `Zope Public License <http://www.zope.org/Resources/ZPL>`_ without the trademark clause).
+* `repoze.workflow <http://svn.repoze.org/repoze.workflow/>`_ uses a `BSD-like license without advertising clause <http://svn.repoze.org/repoze.workflow/trunk/LICENSE.txt>`_ which is very similar to the `Zope Public License <http://www.zope.org/Resources/ZPL>`_ without the trademark clause.
 * repoze.workflow depends on `zope.interface <http://pypi.python.org/pypi/zope.interface>`_ 
   which uses the BSD-like `Zope Public License 2.1 <http://www.zope.org/Resources/ZPL>`_.
 * The `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ 
-  uses a `3-clause BSD license <http://creativecommons.org/licenses/BSD/>`.
+  uses a `3-clause BSD license <http://creativecommons.org/licenses/BSD/>`_.
 
 I believe that all licenses are GPL compatible and do not require you to publish
 your code if you don't like to.
