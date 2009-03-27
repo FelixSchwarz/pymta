@@ -29,7 +29,7 @@ __all__ = ['set']
 
 
 try:
-    set
+    set = set
 except NameError:
     from sets import Set as set
 
