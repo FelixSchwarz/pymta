@@ -22,9 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from sets import Set
-
 from pymta.api import IMTAPolicy
+from pymta.compat import set
 
 from tests.util import CommandParserTestCase, DummyAuthenticator
 
@@ -63,7 +62,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
                                       expected_first_digit=5)
         self.assertEqual(503, code)
         expected_message = 'Command "helo" is not allowed here'
-        self.assertTrue(reply_text.startswith(expected_message), reply_text)
+        self.failUnless(reply_text.startswith(expected_message), reply_text)
         self.close_connection()
     
     def test_helo_without_hostname_is_rejected(self):
@@ -111,8 +110,8 @@ class BasicMessageSendingTest(CommandParserTestCase):
     def test_help_is_supported(self):
         code, reply_text = self.send('HELP')
         self.assertEqual(214, code)
-        supported_commands = Set(reply_text[1].split(' '))
-        expected_commands = Set(['AUTH', 'DATA', 'EHLO', 'HELO', 'HELP', 'MAIL',
+        supported_commands = set(reply_text[1].split(' '))
+        expected_commands = set(['AUTH', 'DATA', 'EHLO', 'HELO', 'HELP', 'MAIL',
                                  'NOOP', 'QUIT', 'RCPT', 'RSET'])
         self.assertEqual(expected_commands, supported_commands)
     
@@ -152,7 +151,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         
         self.send('EHLO', 'foo.example.com')
         code, reply_texts = self.command_parser.replies[-1]
-        self.assertTrue('AUTH PLAIN' in reply_texts)
+        self.failUnless('AUTH PLAIN' in reply_texts)
     
     def test_auth_plain_with_username_and_password_is_accepted(self):
         self.session._authenticator = DummyAuthenticator()
@@ -207,7 +206,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         
         self.send('EHLO', 'foo.example.com')
         code, reply_texts = self.command_parser.replies[-1]
-        self.assertTrue('SIZE 100' in reply_texts)
+        self.failUnless('SIZE 100' in reply_texts)
     
     def test_early_rejection_if_size_verb_indicates_big_message(self):
         class RestrictedSizePolicy(IMTAPolicy):

@@ -124,4 +124,6 @@ class PythonMTA(object):
         method will block for this many seconds at most."""
         self._queue.put(None)
         self._shutdown_server.set()
+        # TODO: Looks like we're quitting too fast here.
+
 

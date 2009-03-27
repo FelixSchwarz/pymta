@@ -25,13 +25,10 @@
 import base64
 import binascii
 import re
-try:
-    set
-except NameError:
-    from sets import Set as set
 
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
+from pymta.compat import set
 from pymta.model import Message, Peer
 
 
@@ -59,8 +56,9 @@ class DynamicStateSwitchException(PyMTAException):
 
 class InvalidParametersException(PyMTAException):
     def __init__(self, parameter=None, *args, **kwargs):
+        # In Python 2.3 Exceptions ar old-style classes so we can not use super
+        PyMTAException.__init__(self, *args, **kwargs)
         self.parameter = parameter
-        super(InvalidParametersException, self).__init__(*args, **kwargs)
 
 class PolicyDenial(PyMTAException):
     pass

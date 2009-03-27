@@ -99,7 +99,7 @@ class CommandParserTestCase(TestCase):
     def close_connection(self):
         self.send('quit')
         code, reply_text = self.command_parser.replies[-1]
-        self.assertTrue(221, code)
+        self.assertEqual(221, code)
         self.assertEqual('localhost closing connection', reply_text)
         self.assertEqual(False, self.command_parser.open)
 
