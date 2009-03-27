@@ -383,7 +383,7 @@ class SMTPSession(object):
         except binascii.Error:
             raise InvalidParametersException(base64_credentials)
         else:
-            match = re.search('^\x00([^\x00]*)\x00([^\x00]*)$', credentials)
+            match = re.search('^[^\x00]*\x00([^\x00]*)\x00([^\x00]*)$', credentials)
             if match:
                 username, password = match.group(1), match.group(2)
                 self._check_password(username, password)

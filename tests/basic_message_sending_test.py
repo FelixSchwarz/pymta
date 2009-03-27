@@ -154,11 +154,25 @@ class BasicMessageSendingTest(CommandParserTestCase):
         code, reply_texts = self.command_parser.replies[-1]
         self.assertTrue('AUTH PLAIN' in reply_texts)
     
-    def test_auth_plain_with_correct_arguments_is_accepted(self):
+    def test_auth_plain_with_username_and_password_is_accepted(self):
         self.session._authenticator = DummyAuthenticator()
         
         self.send('EHLO', 'foo.example.com')
         self.send('AUTH PLAIN', u'\x00foo\x00foo'.encode('base64'))
+        self.assertEqual(3, len(self.command_parser.replies))
+        self._check_last_code(235)
+        code, reply_text = self.command_parser.replies[-1]
+        self.assertEqual('Authentication successful', reply_text)
+    
+    def test_auth_plain_with_authzid_username_and_password_is_accepted(self):
+        self.session._authenticator = DummyAuthenticator()
+        
+        self.send('EHLO', 'foo.example.com')
+        # RFC 4616 defines SASL PLAIN in the form
+        # [authzid] \x00 authcid \x00 passwd
+        # smtplib in Python 2.3 will send an additional authzid (which is equal 
+        # to authcid)
+        self.send('AUTH PLAIN', u'ignored\x00foo\x00foo'.encode('base64'))
         self.assertEqual(3, len(self.command_parser.replies))
         self._check_last_code(235)
         code, reply_text = self.command_parser.replies[-1]
