@@ -63,6 +63,8 @@ class SMTPSession(object):
         self._authenticator = authenticator
         
         self._command_arguments = None
+        self._close_connection_after_response = False
+        self._is_connected = True
         self._message = None
         
         self.hostname_regex = re.compile(regex_string, re.IGNORECASE)
@@ -195,19 +197,39 @@ class SMTPSession(object):
     def _evaluate_decision(self, decision):
         return (decision in [True, None])
     
+    def _is_multiline_reply(self, reply_message):
+        return (not isinstance(reply_message, basestring))
+    
+    def _send_custom_response(self, reply):
+        code, custom_response = reply
+        if self._is_multiline_reply(custom_response):
+            self.multiline_reply(code, custom_response)
+        else:
+            self.reply(code, custom_response)
+    
+    def _evaluate_policydecision_result(self, result):
+        decision = self._evaluate_decision(result.is_command_acceptable())
+        response_sent = result.use_custom_reply()
+        if result.close_connection_before_response():
+            self.close_connection()
+            response_sent = True
+        if result.use_custom_reply():
+            self._send_custom_response(result.get_custom_reply())
+        if result.close_connection_after_response():
+            self.please_close_connection_after_response()
+        return decision, response_sent
+    
     def is_allowed(self, acl_name, *args):
-        if self._policy != None:
+        if self._policy is not None:
             decider = getattr(self._policy, acl_name)
             result = decider(*args)
             if result in [True, False, None]:
                 return self._evaluate_decision(result), False
+            elif hasattr(result, 'is_command_acceptable'):
+                return self._evaluate_policydecision_result(result)
             elif len(result) == 2:
                 decision = self._evaluate_decision(result[0])
-                code, custom_response = result[1]
-                if not isinstance(custom_response, basestring):
-                    self.reply(code, custom_response)
-                else:
-                    self.multiline_reply(code, custom_response)
+                self._send_custom_response(result[1])
                 return decision, True
             raise ValueError('Unknown policy response')
         return True, False
@@ -232,33 +254,37 @@ class SMTPSession(object):
                 self.reply(554, 'SMTP service not available')
             self.close_connection()
     
-    
     def handle_input(self, smtp_command, data=None):
         """Processes the given SMTP command with the (optional data).
         [PUBLIC API]
         """
         self._command_arguments = data
+        self.please_close_connection_after_response(False)
         command = smtp_command.upper()
         try:
-            # SMTP commands must be treated as case-insensitive
-            self.state.execute(self, command)
-        except StateMachineError:
-            if command not in self.valid_commands:
-                self.reply(500, 'unrecognized command "%s"' % smtp_command)
-            else:
-                msg = 'Command "%s" is not allowed here' % smtp_command
-                allowed_transitions = self.state.transitions(self)
-                if len(allowed_transitions) > 0:
-                    msg += ', expected on of %s' % allowed_transitions
-                self.reply(503, msg)
-        except InvalidParametersError, e:
-            if not e.response_sent:
-                msg = 'Syntactically invalid %s argument(s)' % smtp_command
-                self.reply(501, msg)
-        except PolicyDenial, e:
-            if not e.response_sent:
-                self.reply(e.code, e.reply_text)
-        self._command_arguments = None
+            try:
+                # SMTP commands must be treated as case-insensitive
+                self.state.execute(self, command)
+            except StateMachineError:
+                if command not in self.valid_commands:
+                    self.reply(500, 'unrecognized command "%s"' % smtp_command)
+                else:
+                    msg = 'Command "%s" is not allowed here' % smtp_command
+                    allowed_transitions = self.state.transitions(self)
+                    if len(allowed_transitions) > 0:
+                        msg += ', expected on of %s' % allowed_transitions
+                        self.reply(503, msg)
+            except InvalidParametersError, e:
+                if not e.response_sent:
+                    msg = 'Syntactically invalid %s argument(s)' % smtp_command
+                    self.reply(501, msg)
+            except PolicyDenial, e:
+                if not e.response_sent:
+                    self.reply(e.code, e.reply_text)
+        finally:
+            if self.should_close_connection_after_response():
+                self.close_connection()
+            self._command_arguments = None
     
     def input_exceeds_limits(self):
         """Called when the client sent a message that exceeded the maximum 
@@ -268,9 +294,7 @@ class SMTPSession(object):
     def reply(self, code, text):
         """This method returns a message to the client (actually the session 
         object is responsible of actually pushing the bits)."""
-        #print 'code, text', code, text
         self._command_parser.push(code, text)
-    
     
     def multiline_reply(self, code, responses):
         """This method returns a message with multiple lines to the client 
@@ -278,9 +302,19 @@ class SMTPSession(object):
         bits)."""
         self._command_parser.multiline_push(code, responses)
     
+    def please_close_connection_after_response(self, value=None):
+        if value is None:
+            value = True
+        self._close_connection_after_response = value
+    
+    def should_close_connection_after_response(self):
+        return self._close_connection_after_response
+    
     def close_connection(self):
         "Request a connection close from the SMTP session handling instance."
-        self._command_parser.close_when_done()
+        if self._is_connected:
+            self._is_connected = False
+            self._command_parser.close_when_done()
     
     
     # -------------------------------------------------------------------------

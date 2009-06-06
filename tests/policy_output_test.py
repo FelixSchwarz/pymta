@@ -22,9 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from unittest import TestCase
-
-from pymta.api import IMTAPolicy
+from pymta.api import IMTAPolicy, PolicyDecision
 
 from tests.util import CommandParserTestCase
 
@@ -65,17 +63,87 @@ class PolicyReturnCodesTest(CommandParserTestCase):
         self.assertEqual(553, code)
         self.assertEqual('Go away', reply_text)
     
-    def test_policy_can_return_multiple_codes(self):
+    def test_policy_can_return_multiple_lines(self):
         class CustomCodePolicy(IMTAPolicy):
             def accept_new_connection(self, peer):
                 return (False, (552, ('Go away', 'Evil IP')))
         self.init(policy=CustomCodePolicy())
         
-        self.assertEqual(False, self.command_parser.open)
         self.assertEqual(1, len(self.command_parser.replies))
         code, reply_text = self.command_parser.replies[-1]
         self.assertEqual(552, code)
         self.assertEqual(('Go away', 'Evil IP'), reply_text)
+        self.assertEqual(False, self.command_parser.open)
+    
+    def test_can_return_policydecision_instance(self):
+        class ReturnPolicyDecisionPolicy(IMTAPolicy):
+            def accept_helo(self, helo_string, message):
+                is_localhost = (helo_string == 'localhost')
+                return PolicyDecision(decision=is_localhost)
+        self.init(policy=ReturnPolicyDecisionPolicy())
         
+        self.send('HELO', 'foo.example.com', expected_first_digit=5)
+        self.send('HELO', 'bar.example.net', expected_first_digit=5)
+        self.send('HELO', 'localhost')
+    
+    def test_can_return_custom_code_and_message_in_policydecision_instance(self):
+        class ReturnCustomCodePolicy(IMTAPolicy):
+            def accept_helo(self, helo_string, message):
+                return PolicyDecision(False, (553, 'I am tired'))
+        self.init(policy=ReturnCustomCodePolicy())
+        
+        self.send('HELO', 'foo.example.com', expected_first_digit=5)
+        code, reply_text = self.command_parser.replies[-1]
+        self.assertEqual((553, 'I am tired'), (code, reply_text))
+    
+    def test_can_close_connection_after_reply(self):
+        class CloseConnectionAfterReplyPolicy(IMTAPolicy):
+            def accept_helo(self, helo_string, message):
+                decision = PolicyDecision(False, (552, 'Stupid Spammer'))
+                decision._close_connection_after_response = True
+                return decision
+        self.init(policy=CloseConnectionAfterReplyPolicy())
+        
+        self.send('HELO', 'foo.example.com', expected_first_digit=5)
+        code, reply_text = self.command_parser.replies[-1]
+        self.assertEqual((552, 'Stupid Spammer'), (code, reply_text))
+        self.assertEqual(False, self.command_parser.open)
+    
+    def test_can_close_connection_before_reply(self):
+        class CloseConnectionAfterReplyPolicy(IMTAPolicy):
+            def accept_helo(self, helo_string, message):
+                decision = PolicyDecision(False)
+                decision._close_connection_before_response = True
+                return decision
+        self.init(policy=CloseConnectionAfterReplyPolicy())
+        
+        number_replies_before = len(self.command_parser.replies)
+        self.session.handle_input('HELO', 'foo.example.com')
+        self.assertEqual(number_replies_before, len(self.command_parser.replies))
+        self.assertEqual(False, self.command_parser.open)
+    
+    def test_can_close_connection_after_using_default_response(self):
+        class CloseConnectionAfterReplyPolicy(IMTAPolicy):
+            def accept_helo(self, helo_string, message):
+                decision = PolicyDecision(False)
+                decision._close_connection_after_response = True
+                return decision
+        self.init(policy=CloseConnectionAfterReplyPolicy())
+        
+        self.send('HELO', 'foo.example.com', expected_first_digit=5)
+        code, reply_text = self.command_parser.replies[-1]
+        self.assertEqual((550, 'Administrative Prohibition'), (code, reply_text))
+        self.assertEqual(False, self.command_parser.open)
+    
+    def test_can_close_connection_after_positive_response(self):
+        class CloseConnectionAfterPositiveReplyPolicy(IMTAPolicy):
+            def accept_helo(self, helo_string, message):
+                decision = PolicyDecision(True)
+                decision._close_connection_after_response = True
+                return decision
+        self.init(policy=CloseConnectionAfterPositiveReplyPolicy())
+        
+        self.send('HELO', 'foo.example.com')
+        self.assertEqual(False, self.command_parser.open)
 
 

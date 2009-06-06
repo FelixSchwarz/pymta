@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from pymta.api import IMTAPolicy
+from pymta.api import IMTAPolicy, PolicyDecision
 
 from tests.util import CommandParserTestCase, DummyAuthenticator
 
@@ -118,10 +118,10 @@ class BasicPolicyTest(CommandParserTestCase):
     
     
     def test_size_limit_messages_can_be_rejected(self):
-        class FalsePolicy(IMTAPolicy):
+        class MaxSizePolicy(IMTAPolicy):
             def max_message_size(self, peer):
                 return 100
-        self.init(policy=FalsePolicy())
+        self.init(policy=MaxSizePolicy())
         self.send('HELO', 'foo.example.com')
         self.send('MAIL FROM', 'foo@example.com')
         self.send('RCPT TO', 'to@example.com')
@@ -132,5 +132,18 @@ class BasicPolicyTest(CommandParserTestCase):
                                        expected_first_digit=5)
         self.assertEqual(552, code)
         self.assertEqual('message exceeds fixed maximum message size', reply_text)
-
+    
+    def test_server_deals_gracefully_with_double_close_because_of_faulty_policy(self):
+        class DoubleCloseConnectionPolicy(IMTAPolicy):
+            def accept_helo(self, helo_string, message):
+                decision = PolicyDecision(True)
+                decision._close_connection_before_response = True
+                decision._close_connection_after_response = True
+                return decision
+        self.init(policy=DoubleCloseConnectionPolicy())
+        
+        number_replies_before = len(self.command_parser.replies)
+        self.session.handle_input('HELO', 'foo.example.com')
+        self.assertEqual(number_replies_before, len(self.command_parser.replies))
+        self.assertEqual(False, self.command_parser.open)
 

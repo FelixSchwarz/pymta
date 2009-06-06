@@ -25,7 +25,8 @@ considered part of the public API which should be as stable as possible."""
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-__all__ = ['IAuthenticator', 'IMessageDeliverer', 'IMTAPolicy', 'PyMTAException']
+__all__ = ['IAuthenticator', 'IMessageDeliverer', 'IMTAPolicy', 'PolicyDecision', 
+           'PyMTAException']
 
 
 class IAuthenticator(object):
@@ -59,6 +60,34 @@ class IMessageDeliverer(object):
         raise NotImplementedError
 
 
+class PolicyDecision(object):
+    def __init__(self, decision=True, reply=None):
+        self._decision = decision
+        self._reply = reply
+        self._close_connection_before_response = False
+        self._close_connection_after_response = False
+    
+    def close_connection_before_response(self):
+        """Return True if the server should close the client connection without
+        any further communication."""
+        return self._close_connection_before_response
+    
+    def close_connection_after_response(self):
+        """Return True if the server should close the client connection after it
+        sent the given response."""
+        return self._close_connection_after_response
+    
+    def is_command_acceptable(self):
+        return self._decision
+    
+    def use_custom_reply(self):
+        return (self._reply is not None)
+    
+    def get_custom_reply(self):
+        if not self.use_custom_reply():
+            raise ValueError('No custom reply set.')
+        return self._reply
+
 
 class IMTAPolicy(object):
     """Policies can change with behavior of an MTA dynamically (e.g. don't allow 
@@ -86,11 +115,18 @@ class IMTAPolicy(object):
     default replies.
     
     Alternatively a policy can choose to return a tuple to have more control 
-    over the reply sent to the client: (decision, (reply code, response)). The
-    decision is the boolean known from the last paragraph. The reply code is an
-    integer which should a be a valid SMTP code. response is either a basestring
-    with a custom message or an iterable of basestrings (in case you need to 
-    return a multi-line reply)."""
+    over the reply sent to the client: (decision, (reply code, reply message)). 
+    The decision is the boolean known from the last paragraph. The reply code 
+    is an integer which should a be a valid SMTP code. reply message is either a 
+    basestring with a custom message or an iterable of basestrings (in case a 
+    a multi-line reply is sent).
+    
+    Last but not least a PolicyDecision can be returned which embodies the 
+    decision as well as (optionally) a custom reply. The reply has the same 
+    format as described in the paragraph before. The PolicyDecision can ask the
+    server to close the connection unconditionally after or even before sending
+    the response to the client (in the latter case no response will be sent).
+    """
     
     def accept_new_connection(self, peer):
         """This method is called directly after a new connection is received. 

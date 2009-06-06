@@ -41,9 +41,11 @@ class MockCommandParser(object):
         pass
     
     def push(self, code, text):
+        assert self.open
         self.replies.append((code, text))
     
     def multiline_push(self, code, lines):
+        assert self.open
         self.replies.append((code, lines))
     
     def close_when_done(self):
@@ -81,7 +83,7 @@ class CommandParserTestCase(TestCase):
                                    deliverer=self.deliverer,
                                    policy=policy, authenticator=authenticator)
         self.session.new_connection('127.0.0.1', 4567)
-        
+    
     def check_reply_code(self, code, reply_text, expected_first_digit):
         first_code_digit = int(str(code)[0])
         smtp_reply = "%s %s" % (code, reply_text)
