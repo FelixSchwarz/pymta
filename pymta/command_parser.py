@@ -28,6 +28,7 @@ import socket
 
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
+from pymta.exceptions import SMTPViolationError
 from pymta.session import SMTPSession
 
 __all__ = ['SMTPCommandParser']
@@ -191,9 +192,8 @@ class SMTPCommandParser(object):
         self._channel.close()
 
 
-# TODO: Make this inherit from pymtaexception, move that into api and make a new
-# smtpprotocolviolationError in smtpsession.
-class ClientDisconnectedError(Exception):
+class ClientDisconnectedError(SMTPViolationError):
+    """Raised when the SMTP client closed the connection unexpectedly."""
     pass
 
 

@@ -25,7 +25,7 @@ considered part of the public API which should be as stable as possible."""
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-__all__ = ['IAuthenticator', 'IMessageDeliverer', 'IMTAPolicy']
+__all__ = ['IAuthenticator', 'IMessageDeliverer', 'IMTAPolicy', 'PyMTAException']
 
 
 class IAuthenticator(object):
@@ -159,6 +159,11 @@ class IMTAPolicy(object):
         before the SMTP server takes the responsibility of transferring it to 
         the recipients."""
         return True
+
+
+class PyMTAException(Exception):
+    """Base class for all exceptions used in pymta."""
+    pass
 
 
 

@@ -29,6 +29,7 @@ import re
 from repoze.workflow.statemachine import StateMachine, StateMachineError
 
 from pymta.compat import set
+from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
 
 
@@ -40,27 +41,7 @@ __all__ = ['SMTPSession']
 regex_string = r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
 
 
-class PyMTAException(Exception):
-    def __init__(self, response_sent=False, code=550, 
-                 reply_text='Administrative Prohibition'):
-        self.response_sent = response_sent
-        self.code = code
-        self.reply_text = reply_text
-
-class DynamicStateSwitchException(PyMTAException):
-    """Used to implement more complicated state transitions where the next 
-    state depends on other values (e.g. where to go after a message was 
-    received - depends on ESMTP and AUTH)."""
-    def __init__(self, new_state):
-        self.new_state = new_state
-
-class InvalidParametersException(PyMTAException):
-    def __init__(self, parameter=None, *args, **kwargs):
-        # In Python 2.3 Exceptions ar old-style classes so we can not use super
-        PyMTAException.__init__(self, *args, **kwargs)
-        self.parameter = parameter
-
-class PolicyDenial(PyMTAException):
+class PolicyDenial(SMTPViolationError):
     pass
 
 
@@ -206,7 +187,7 @@ class SMTPSession(object):
             print base_msg % (smtp_command, name_handler_method)
             self.reply(451, 'Temporary Local Problem: Please come back later')
         else:
-            # Don't catch InvalidParametersException here - else the state would
+            # Don't catch InvalidParametersError here - else the state would
             # be moved forward. Instead the handle_input will catch it and send
             # out the appropriate reply.
             handler_method()
@@ -270,7 +251,7 @@ class SMTPSession(object):
                 if len(allowed_transitions) > 0:
                     msg += ', expected on of %s' % allowed_transitions
                 self.reply(503, msg)
-        except InvalidParametersException, e:
+        except InvalidParametersError, e:
             if not e.response_sent:
                 msg = 'Syntactically invalid %s argument(s)' % smtp_command
                 self.reply(501, msg)
@@ -337,7 +318,7 @@ class SMTPSession(object):
         helo_string = (self._command_arguments or '').strip()
         valid_hostname_syntax = (self.hostname_regex.match(helo_string) != None)
         if not valid_hostname_syntax:
-            raise InvalidParametersException(helo_string)
+            raise InvalidParametersError(helo_string)
         else:
             decision, response_sent = self.is_allowed(policy_methodname, helo_string, self._message)
             if decision:
@@ -365,7 +346,7 @@ class SMTPSession(object):
         assert response_sent == False
         if self._authenticator == None:
             self.reply(535, 'AUTH not available')
-            raise InvalidParametersException(response_sent=True)
+            raise InvalidParametersError(response_sent=True)
         credentials_correct = \
             self._authenticator.authenticate(username, password, self._message.peer)
         if credentials_correct:
@@ -379,14 +360,14 @@ class SMTPSession(object):
         try:
             credentials = base64.decodestring(base64_credentials)
         except binascii.Error:
-            raise InvalidParametersException(base64_credentials)
+            raise InvalidParametersError(base64_credentials)
         else:
             match = re.search('^[^\x00]*\x00([^\x00]*)\x00([^\x00]*)$', credentials)
             if match:
                 username, password = match.group(1), match.group(2)
                 self._check_password(username, password)
             else:
-                raise InvalidParametersException(credentials)
+                raise InvalidParametersError(credentials)
     
     def _split_mail_from_parameter(self, data):
         sender = data
@@ -415,7 +396,7 @@ class SMTPSession(object):
             if max_message_size != None:
                 if announced_size > max_message_size:
                     self.reply(552, 'message exceeds fixed maximum message size')
-                    raise InvalidParametersException('MAIL FROM', response_sent=True)
+                    raise InvalidParametersError('MAIL FROM', response_sent=True)
     
     def smtp_mail_from(self):
         data = self._command_arguments
@@ -427,7 +408,7 @@ class SMTPSession(object):
             self._check_mail_extensions(extensions)
         elif len(extensions) > 0:
             self.reply(501, 'No SMTP extensions allowed for plain SMTP')
-            raise InvalidParametersException('MAIL', response_sent=True)
+            raise InvalidParametersError('MAIL', response_sent=True)
         decision, response_sent = self.is_allowed('accept_from', sender, self._message)
         if decision:
             self._message.smtp_from = sender
@@ -440,7 +421,7 @@ class SMTPSession(object):
         match = re.search('^<?(.*?)>?$', parameter)
         if match:
             return match.group(1)
-        raise InvalidParametersException(parameter)
+        raise InvalidParametersError(parameter)
     
     def smtp_rcpt_to(self):
         # TODO: Check for good email address!
