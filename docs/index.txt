@@ -25,9 +25,8 @@ multiple connections in parallel, pymta uses the
 which was added to the standard library in Python 2.6 (there are backports for
 Python 2.4 and 2.5).
 
-Currently pymta is only tested with Python 2.5 but probably 2.4 works too. The 
-goal is to make pymta compatible with Python 2.3-2.6. With Python 2.3 you can 
-only serve one connection at a time due to the lack of a multiprocessing module.
+pymta supports Python 2.3-2.6. With Python 2.3 you can only serve one 
+connection at a time due to the lack of a multiprocessing module.
 
 repoze.workflow
 ---------------
@@ -324,7 +323,7 @@ theoretical figures.
 Environment and benchmark settings:
 
  * System: Fedora 10 with an AMD x2 4200 (2.2 GHz), Python 2.5
- * pymta: DebuggingServer with NullDeliverer and no policy.
+ * pymta: version 0.3, DebuggingServer with NullDeliverer and no policy.
  * postal: 4 threads, no SSL connections, one message per connection (defaults)
 
 With that configuration I got something between 1540-2270 messages per minute
