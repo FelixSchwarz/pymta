@@ -225,7 +225,7 @@ class WorkerProcess(object):
         while True:
             # We want to check periodically if we need to abort
             try:
-                conn, addr = self._server_socket.accept()
+                connection, remote_address = self._server_socket.accept()
                 break
             except socket.timeout:
                 try:
@@ -235,8 +235,8 @@ class WorkerProcess(object):
                         return None
                 except Empty:
                     pass
-        conn.settimeout(socket.getdefaulttimeout())
-        return conn, addr
+        connection.settimeout(socket.getdefaulttimeout())
+        return connection, remote_address
     
     def _get_token_with_timeout(self, seconds):
         # wait at max 1 second for the token so that we can abort the whole
@@ -310,7 +310,10 @@ class WorkerProcess(object):
         data = ''
         self._input_too_big = False
         while True:
-            more_data = self._connection.recv(4096)
+            try:
+                more_data = self._connection.recv(4096)
+            except socket.error:
+                raise ClientDisconnectedError()
             if more_data == '':
                 raise ClientDisconnectedError()
             elif more_data.endswith(self._chatter.terminator):

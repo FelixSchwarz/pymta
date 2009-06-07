@@ -1,8 +1,14 @@
 
 Changelog for pymta
 
+0.4.0
+- Compatibility fixes for Python 2.3-2.6
+- Policies can cause connection drop by server
+- CommandParser is more robust against various socket errors
+
 0.3.1 (27.02.2009)
  - Fixed bug which caused hang after unexpected connection drop by client
+
 
 0.3 (15.02.2009)
  - Switch to process-based architecture, got rid of asyncore
@@ -13,11 +19,13 @@ Changelog for pymta
  - Added the debugging_server as an extremely simple example of a pymta-based 
    server
 
+
 0.2.1 (19.12.2008)
  - wrote documentation
  - bug fixes
     - multiple messages in one SMTP transaction
     - transparency support for lines in the message starting with a dot
+
 
 0.2 (16.12.2008)
  - initial release
