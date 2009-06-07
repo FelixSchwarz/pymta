@@ -25,6 +25,7 @@
 import random
 import smtplib
 import socket
+import time
 from unittest import TestCase
 
 from pymta.api import IMTAPolicy
@@ -54,7 +55,18 @@ class BasicSMTPTest(TestCase):
         
         self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
-        self.connection.connect(self.hostname, self.listen_port)
+        self._try_to_connect_to_mta()
+    
+    def _try_to_connect_to_mta(self):
+        tries = 0
+        while tries < 10:
+            try:
+                self.connection.connect(self.hostname, self.listen_port)
+            except socket.error:
+                tries += 1
+                time.sleep(0.1)
+            else:
+                break
     
     def stop_mta(self):
         try:
