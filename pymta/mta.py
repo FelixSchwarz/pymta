@@ -65,6 +65,17 @@ class PythonMTA(object):
         self._processes = []
         self._shutdown_server = Event()
     
+    def _try_to_bind_to_socket(self, server_socket):
+        tries = 0
+        while tries < 10:
+            try:
+                server_socket.bind((self._local_address, self._bind_port))
+            except socket.error:
+                tries += 1
+                time.sleep(0.1)
+            else:
+                break
+    
     def _build_server_socket(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # If the server crashed and we restarted it within a very short time 
@@ -72,7 +83,7 @@ class PythonMTA(object):
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # We want to terminate all children within a reasonable time
         server_socket.settimeout(1)
-        server_socket.bind((self._local_address, self._bind_port))
+        self._try_to_bind_to_socket(server_socket)
         # Don't loose connections in the time frame when a new connection was 
         # accepted. Python's documentation says the maximum is system dependent
         # but usually 5 so we take that.
