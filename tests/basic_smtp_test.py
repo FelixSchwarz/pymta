@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import random
 import smtplib
 import socket
 from unittest import TestCase
@@ -40,7 +41,7 @@ class BasicSMTPTest(TestCase):
 
     def setUp(self):
         self.hostname = 'localhost'
-        self.listen_port = 8025
+        self.listen_port = random.randint(8000, 40000)
         self.init_mta()
     
     def init_mta(self, policy_class=IMTAPolicy):
