@@ -22,14 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import random
 import smtplib
 import socket
-import time
-from unittest import TestCase
 
 from pymta.api import IMTAPolicy
-from pymta.test_util import BlackholeDeliverer, DebuggingMTA, MTAThread
+from pymta.test_util import DebuggingMTA, SMTPTestCase
 
 from tests.util import DummyAuthenticator
 
@@ -37,56 +34,35 @@ from tests.util import DummyAuthenticator
 rfc822_msg = 'Subject: Test\n\nJust testing...'
 
 
-class BasicSMTPTest(TestCase):
-    """This test uses the SMTP protocol to check the whole server."""
 
-    def setUp(self):
-        self.hostname = 'localhost'
-        self.listen_port = random.randint(8000, 40000)
-        self.init_mta()
+class BasicSMTPTest(SMTPTestCase):
+    """This test uses the SMTP protocol to check the whole server."""
+    
+    def build_mta(self, hostname, listen_port, deliverer, policy_class=None):
+        return DebuggingMTA(hostname, listen_port, deliverer,
+                            authenticator_class=DummyAuthenticator,
+                            policy_class=policy_class)
     
     def init_mta(self, policy_class=IMTAPolicy):
-        self.deliverer = BlackholeDeliverer
-        self.mta = DebuggingMTA(self.hostname, self.listen_port, self.deliverer,
-                                policy_class=policy_class, 
-                                authenticator_class=DummyAuthenticator)
-        self.mta_thread = MTAThread(self.mta)
-        self.mta_thread.start()
-        
+        super(BasicSMTPTest, self).init_mta(policy_class)
         self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
-        self._try_to_connect_to_mta()
-    
-    def _try_to_connect_to_mta(self):
-        tries = 0
-        while tries < 10:
-            try:
-                self.connection.connect(self.hostname, self.listen_port)
-            except socket.error:
-                tries += 1
-                time.sleep(0.1)
-            else:
-                break
+        self.connection.connect(self.hostname, self.listen_port)
     
     def stop_mta(self):
-        try:
-            self.connection.quit()
-        except smtplib.SMTPServerDisconnected:
-            pass
-        self.mta_thread.stop()
-    
-    def tearDown(self):
-        self.stop_mta()
+        if getattr(self, 'connection', None) is not None:
+            try:
+                self.connection.quit()
+            except smtplib.SMTPServerDisconnected:
+                pass
+        super(BasicSMTPTest, self).stop_mta()
     
     def test_helo(self):
         code, replytext = self.connection.helo('foo')
         self.assertEqual(250, code)
     
-    def _get_received_messages(self):
-        return self.deliverer.received_messages
-    
     def _check_received_mail(self, expected_recipients, expected_helo=None):
-        queue = self._get_received_messages()
+        queue = self.get_received_messages()
         self.assertEqual(1, queue.qsize())
         msg = queue.get()
         if expected_helo != None:
@@ -140,7 +116,7 @@ class BasicSMTPTest(TestCase):
         self.connection.sendmail('x@example.com', 'foo@example.com', rfc822_msg)
         self.connection.sendmail('x@example.com', 'bar@example.com', rfc822_msg)
         
-        queue = self._get_received_messages()
+        queue = self.get_received_messages()
         self.assertEqual(2, queue.qsize())
         first_msg = queue.get()
         self.assertNotEqual(None, first_msg.smtp_helo)
@@ -157,7 +133,7 @@ class BasicSMTPTest(TestCase):
         self.connection.sendmail('from@example.com', 'foo@example.com', msg)
         self.connection.quit()
         
-        queue = self._get_received_messages()
+        queue = self.get_received_messages()
         self.assertEqual(1, queue.qsize())
         received_msg = queue.get()
         self.assertEqual(msg, received_msg.msg_data)

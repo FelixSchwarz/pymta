@@ -297,6 +297,9 @@ some utility classes which are probably helpful in your tests as well...
 .. autoclass:: pymta.test_util.MTAThread
    :members:
 
+.. autoclass:: pymta.test_util.SMTPTestCase
+   :members:
+
 
 
 Example SMTP server application
