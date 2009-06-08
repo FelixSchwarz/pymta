@@ -38,6 +38,13 @@ source_suffix = '.txt'
 # The master toctree document.
 master_doc = 'index'
 
+def get_version():
+    release_info = {}
+    rel_basedir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+    basedir = os.path.abspath(rel_basedir)
+    execfile(os.path.join(basedir, "pymta", "release.py"), release_info)
+    return release_info['version']
+
 # General substitutions.
 project = 'pymta'
 copyright = '2008-2009, Felix Schwarz'
@@ -46,9 +53,10 @@ copyright = '2008-2009, Felix Schwarz'
 # other places throughout the built documents.
 #
 # The short X.Y version.
-version = '0.2'
+
+version = get_version()
 # The full version, including alpha/beta/rc tags.
-release = '0.2'
+release = version
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
