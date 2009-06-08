@@ -1,10 +1,13 @@
 
 Changelog for pymta
+===================
 
-0.4.0
+0.4.0 (08.06.2009)
 - Compatibility fixes for Python 2.3-2.6
-- Policies can cause connection drop by server
+- Policies can drop connection to the client before or after the response
 - CommandParser is more robust against various socket errors
+- Better infrastructure and documentation to use pymta in third-party tests
+
 
 0.3.1 (27.02.2009)
  - Fixed bug which caused hang after unexpected connection drop by client
