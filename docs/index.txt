@@ -15,43 +15,6 @@ you want to...
     :maxdepth: 2
 
 
-Installation and Setup
-======================
-
-pymta is just a Python library which uses setuptools so it does not require 
-a special setup. The only hard dependency is repoze.workflow (0.2dev). To serve
-multiple connections in parallel, pymta uses the 
-`multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ module 
-which was added to the standard library in Python 2.6 (there are backports for
-Python 2.4 and 2.5).
-
-pymta supports Python 2.3-2.6. With Python 2.3 you can only serve one 
-connection at a time due to the lack of a multiprocessing module.
-
-repoze.workflow
----------------
-repoze.workflow is not available in pypi (yet?) so you have to install it
-directly from the svn::
-  
-  easy_install http://svn.repoze.org/repoze.workflow/trunk/
-
-repoze.workflow requires zope.interface which is available via pypi (and 
-installable via the package manager for most Linux distributions).
-
-multiprocessing
----------------
-The `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_
-module hides most the operating system differences when it comes to multiple 
-processes. The module is included in Python 2.6 but it is available standalone
-via pypi::
-  
-  easy_install multiprocessing
-
-If multiprocessing is not installed, pymta will fall back to single-threaded
-execution automatically (therefore multiprocessing is no hard requirement in the
-egg file).
-
-
 Goals of pymta
 ==============
 
@@ -67,7 +30,7 @@ hacked (just for the fun of it).
 Development Status
 ==================
 
-Currently (02/2009, version 0.3) the library only implements basic SMTP with 
+Currently (06/2009, version 0.4) the library only implements basic SMTP with 
 very few extensions (e.g. PLAIN authentication). However, as far as I know, it
 is the only MTA written in Python that implements a process-based strategy for
 connection handling which is an advantage because many libraries - including 
@@ -126,6 +89,43 @@ implements the absolute minimum of SMTP and many things like the command parsing
 are just hard-coded. On the other hand, the server's behavior can be changed by
 implementing a custom strategy class. `Trac included an extended version <http://trac.edgewall.org/browser/trunk/trac/tests/notification.py>`_
 of smtps in its test suite.
+
+
+Installation and Setup
+======================
+
+pymta is just a Python library which uses setuptools so it does not require 
+a special setup. The only hard dependency is repoze.workflow (0.2dev). To serve
+multiple connections in parallel, pymta uses the 
+`multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ module 
+which was added to the standard library in Python 2.6 (there are backports for
+Python 2.4 and 2.5).
+
+pymta supports Python 2.3-2.6. With Python 2.3 you can only serve one 
+connection at a time due to the lack of a multiprocessing module.
+
+repoze.workflow
+---------------
+repoze.workflow is not available in pypi (yet?) so you have to install it
+directly from the svn::
+  
+  easy_install http://svn.repoze.org/repoze.workflow/trunk/
+
+repoze.workflow requires zope.interface which is available via pypi (and 
+installable via the package manager for most Linux distributions).
+
+multiprocessing
+---------------
+The `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_
+module hides most the operating system differences when it comes to multiple 
+processes. The module is included in Python 2.6 but it is available standalone
+via pypi::
+  
+  easy_install multiprocessing
+
+If multiprocessing is not installed, pymta will fall back to single-threaded
+execution automatically (therefore multiprocessing is no hard requirement in the
+egg file).
 
 
 Architectural Overview
