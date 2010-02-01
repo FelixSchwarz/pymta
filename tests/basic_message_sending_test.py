@@ -76,8 +76,13 @@ class BasicMessageSendingTest(CommandParserTestCase):
         expect_invalid('')
         expect_invalid('  ')
         expect_invalid(None)
+        # TODO: This is questionable - does SMTP realy require hostname|ip address?
         expect_invalid('foo bar')
         expect_invalid('foo_bar')
+    
+    def test_helo_can_send_ipv4_address_in_brackets(self):
+        # smtplib in Python 2.6.2 does this at least...
+        self.send('helo', '[127.0.0.1]')
     
     def test_invalid_commands_are_recognized(self):
         self.session.handle_input('invalid')

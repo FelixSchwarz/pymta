@@ -2,7 +2,7 @@
 #
 # The MIT License
 # 
-# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# Copyright (c) 2008-2010 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -350,7 +350,10 @@ class SMTPSession(object):
     
     def _process_helo_or_ehlo(self, policy_methodname, reply_method):
         helo_string = (self._command_arguments or '').strip()
-        valid_hostname_syntax = (self.hostname_regex.match(helo_string) != None)
+        if re.match('\[(.*)\]', helo_string):
+            # hack to allow '[127.0.0.1]'
+            helo_string = helo_string[1:-1]
+        valid_hostname_syntax = (self.hostname_regex.match(helo_string) is not None)
         if not valid_hostname_syntax:
             raise InvalidParametersError(helo_string)
         else:
