@@ -44,6 +44,7 @@ class BasicSMTPTest(SMTPTestCase):
                             policy_class=policy_class)
     
     def init_mta(self, policy_class=IMTAPolicy):
+        self.super()
         super(BasicSMTPTest, self).init_mta(policy_class)
         self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
@@ -55,32 +56,32 @@ class BasicSMTPTest(SMTPTestCase):
                 self.connection.quit()
             except smtplib.SMTPServerDisconnected:
                 pass
-        super(BasicSMTPTest, self).stop_mta()
+        self.super()
     
     def test_helo(self):
         code, replytext = self.connection.helo('foo')
-        self.assertEqual(250, code)
+        self.assert_equals(250, code)
     
     def _check_received_mail(self, expected_recipients, expected_helo=None):
         queue = self.get_received_messages()
-        self.assertEqual(1, queue.qsize())
+        self.assert_equals(1, queue.qsize())
         msg = queue.get()
-        if expected_helo != None:
-            self.assertEqual('foo', msg.smtp_helo)
-        self.assertEqual('from@example.com', msg.smtp_from)
-        self.assertEqual(expected_recipients, msg.smtp_to)
-        self.assertEqual(rfc822_msg, msg.msg_data)
+        if expected_helo is not None:
+            self.assert_equals('foo', msg.smtp_helo)
+        self.assert_equals('from@example.com', msg.smtp_from)
+        self.assert_equals(expected_recipients, msg.smtp_to)
+        self.assert_equals(rfc822_msg, msg.msg_data)
         return msg
     
     def test_send_simple_email(self):
         code, replytext = self.connection.helo('foo')
-        self.assertEqual(250, code)
+        self.assert_equals(250, code)
         code, replytext = self.connection.mail('from@example.com')
-        self.assertEqual(250, code)
+        self.assert_equals(250, code)
         code, replytext = self.connection.rcpt('to@example.com')
-        self.assertEqual(250, code)
+        self.assert_equals(250, code)
         code, replytext = self.connection.data(rfc822_msg)
-        self.assertEqual(250, code)
+        self.assert_equals(250, code)
         self.connection.quit()
         self._check_received_mail(['to@example.com'], expected_helo='foo')
     
@@ -106,7 +107,7 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.sendmail('from@example.com', recipient, rfc822_msg)
         self.connection.quit()
         msg = self._check_received_mail([recipient])
-        self.assertEqual('admin', msg.username)
+        self.assert_equals('admin', msg.username)
     
     def test_send_multiple_emails_in_one_connection(self):
         """Check that we can send multiple emails in the same connection (and
@@ -117,14 +118,14 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.sendmail('x@example.com', 'bar@example.com', rfc822_msg)
         
         queue = self.get_received_messages()
-        self.assertEqual(2, queue.qsize())
+        self.assert_equals(2, queue.qsize())
         first_msg = queue.get()
-        self.assertNotEqual(None, first_msg.smtp_helo)
-        self.assertEqual('x@example.com', first_msg.smtp_from)
+        self.assert_not_none(first_msg.smtp_helo)
+        self.assert_equals('x@example.com', first_msg.smtp_from)
         
         second_msg = queue.get()
-        self.assertEqual(first_msg.smtp_helo, second_msg.smtp_helo)
-        self.assertEqual(first_msg.username, second_msg.username)
+        self.assert_equals(first_msg.smtp_helo, second_msg.smtp_helo)
+        self.assert_equals(first_msg.username, second_msg.username)
     
     def test_transparency_support_enabled(self):
         """Check that there is transparency support for lines starting with a 
@@ -134,9 +135,9 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.quit()
         
         queue = self.get_received_messages()
-        self.assertEqual(1, queue.qsize())
+        self.assert_equals(1, queue.qsize())
         received_msg = queue.get()
-        self.assertEqual(msg, received_msg.msg_data)
+        self.assert_equals(msg, received_msg.msg_data)
     
     def test_big_messages_are_rejected(self):
         """Check that messages which exceed the configured maximum message size
@@ -151,20 +152,19 @@ class BasicSMTPTest(SMTPTestCase):
         
         big_data_chunk = ('x'*70 + '\n') * 1500
         msg = rfc822_msg + big_data_chunk
-        try:
-            self.connection.sendmail('from@example.com', 'foo@example.com', msg)
-            self.fail('SMTPDataError not thrown')
-        except (smtplib.SMTPDataError, smtplib.SMTPSenderRefused), e:
-            # Depending on when the protocol used (ESMTP with SIZE extension or
-            # plain old SMTP) and when the server checks the message size (after
-            # MAIL FROM or only when the message was transmitted completely), 
-            # the error message may differ.
-            # Unfortunately Python's smtplib raises SMTPSenderRefused even if 
-            # the message was rejected due to size restrictions after issuing 
-            # MAIL FROM with size verb
-            self.assertEqual(552, e.smtp_code)
-            self.assertEqual('message exceeds fixed maximum message size', 
-                             e.smtp_error)
+        
+        # Depending on when the protocol used (ESMTP with SIZE extension or
+        # plain old SMTP) and when the server checks the message size (after
+        # MAIL FROM or only when the message was transmitted completely), 
+        # the error message may differ.
+        # Unfortunately Python's smtplib raises SMTPSenderRefused even if the 
+        # message was rejected due to size restrictions after issuing MAIL FROM 
+        # with size verb
+        expected_exceptions = (smtplib.SMTPDataError, smtplib.SMTPSenderRefused)
+        e = self.assert_raises(expected_exceptions, self.connection.sendmail, 
+                               'from@example.com', 'foo@example.com', msg)
+        self.assert_equals(552, e.smtp_code)
+        self.assert_equals('message exceeds fixed maximum message size', e.smtp_error)
     
     def test_workerprocess_detects_closed_connections(self):
         """Check that the WorkerProcess gracefully handles connections which are

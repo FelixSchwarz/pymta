@@ -34,9 +34,9 @@ import random
 import socket
 import threading
 import time
-from unittest import TestCase
 
 from pymta.api import IMessageDeliverer, IMTAPolicy
+from pymta.lib import PythonicTestCase
 from pymta.mta import PythonMTA
 
 
@@ -98,7 +98,7 @@ class MTAThread(threading.Thread):
                       "termination!"
 
 
-class SMTPTestCase(TestCase):
+class SMTPTestCase(PythonicTestCase):
     """The SMTPTestCase is a unittest.TestCase and provides you with a running
     MTA listening on 'localhost:[8000-40000]' which you can use in your 
     tests. No messages will be delivered to the outside world because the MTA
@@ -107,7 +107,7 @@ class SMTPTestCase(TestCase):
     Please make sure that you call the super method for setUp and tearDown."""
     
     def setUp(self):
-        super(SMTPTestCase, self).setUp()
+        self.super()
         self.hostname = 'localhost'
         self.listen_port = random.randint(8000, 40000)
         self.mta_thread = None
@@ -153,7 +153,7 @@ class SMTPTestCase(TestCase):
     def tearDown(self):
         """Stops the MTA thread."""
         self.stop_mta()
-        super(SMTPTestCase, self).tearDown()
+        self.super()
     
     def get_received_messages(self):
         """Return a list of received messages which are stored in the 

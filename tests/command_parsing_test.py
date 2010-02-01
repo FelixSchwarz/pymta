@@ -22,47 +22,47 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from unittest import TestCase
-
 from pymta.command_parser import ParserImplementation
+from pymta.lib import PythonicTestCase
 from pymta.session import SMTPSession
 
 
-class CommandParsingTest(TestCase):
+class CommandParsingTest(PythonicTestCase):
 
     def setUp(self):
+        self.super()
         session = SMTPSession(command_parser=None, deliverer=None)
         allowed_commands = session.get_all_allowed_internal_commands()
         self.parser = ParserImplementation(allowed_commands)
     
     def test_parse_command_without_arguments(self):
-        self.assertEqual(('QUIT', None), self.parser.parse('QUIT'))
-        self.assertEqual(('RSET', None), self.parser.parse('RSET'))
+        self.assert_equals(('QUIT', None), self.parser.parse('QUIT'))
+        self.assert_equals(('RSET', None), self.parser.parse('RSET'))
     
     def test_parse_helo(self):
-        self.assertEqual(('HELO', 'foo.example.com'), 
+        self.assert_equals(('HELO', 'foo.example.com'), 
                          self.parser.parse('HELO foo.example.com'))
         # This command is syntactically invalid but the validity of specific
         # commands should not be checked in the parser.
-        self.assertEqual(('helo', 'foo example.com'), 
+        self.assert_equals(('helo', 'foo example.com'), 
                          self.parser.parse('helo foo example.com'))
     
     def test_strip_parameters(self):
-        self.assertEqual(('HELO', 'foo.example.com'), 
+        self.assert_equals(('HELO', 'foo.example.com'), 
                          self.parser.parse('HELO   foo.example.com   '))
     
     def test_parse_commands_with_colons(self):
-        self.assertEqual(('MAIL FROM', 'foo@example.com'), 
+        self.assert_equals(('MAIL FROM', 'foo@example.com'), 
                         self.parser.parse('MAIL FROM: foo@example.com'))
-        self.assertEqual(('MAIL FROM', 'foo@example.com'), 
+        self.assert_equals(('MAIL FROM', 'foo@example.com'), 
                         self.parser.parse('MAIL FROM:foo@example.com'))
-        self.assertEqual(('MAIL FROM', 'foo@example.com'), 
+        self.assert_equals(('MAIL FROM', 'foo@example.com'), 
                         self.parser.parse('MAIL FROM:  foo@example.com   '))
-        self.assertEqual(('RCPT TO', 'foo@example.com, bar@example.com'), 
+        self.assert_equals(('RCPT TO', 'foo@example.com, bar@example.com'), 
                         self.parser.parse('RCPT TO:foo@example.com, bar@example.com'))
     
     def test_parse_auth_plain(self):
-        self.assertEqual(('AUTH PLAIN', 'AGZvbwBiYXI='), 
+        self.assert_equals(('AUTH PLAIN', 'AGZvbwBiYXI='), 
                          self.parser.parse('AUTH PLAIN AGZvbwBiYXI='))
 
 
