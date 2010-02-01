@@ -7,4 +7,6 @@ temp_eggs
 syntax: glob
 *.pyc
 *.egg-info
-
+*.egg
+site.py
+easy-install.pth
