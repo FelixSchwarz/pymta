@@ -5,10 +5,10 @@ import os
 from setuptools import setup
 
 
-execfile(os.path.join("pymta", "release.py"))
+execfile(os.path.join('pymta', 'release.py'))
 
 setup(
-      name="pymta",
+      name=name,
       version=version,
         
       description=description,
