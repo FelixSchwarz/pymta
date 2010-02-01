@@ -1,10 +1,10 @@
 # -*- coding: UTF-8 -*-
-"""Release information about pymta."""
+"Release information about pymta."
 
-name = "pymta"
-version = "0.5dev"
-description = "library to build a custom SMTP server"
-long_description = """
+name = 'pymta'
+version = '0.5dev'
+description = 'library to build a custom SMTP server'
+long_description = '''
 pymta is a library to build a custom SMTP server in Python. This is useful if 
 you want to...
 
@@ -36,11 +36,11 @@ Changelog
  - Renamed DefaultMTAPolicy to IMTAPolicy and moved all interfaces to pymta.api
  - Added the debugging_server as an extremely simple example of a pymta-based 
    server
-"""
-author = "Felix Schwarz"
-email = "felix.schwarz@oss.schwarz.eu"
-url = "http://www.schwarz.eu/opensource/projects/pymta"
-download_url = "http://www.schwarz.eu/opensource/projects/pymta/download/%(version)s/pymta-%(version)s.tar.gz" % dict(version=version)
-copyright = "© 2008-2009 Felix Schwarz"
-license="MIT"
+'''
+author = 'Felix Schwarz'
+email = 'felix.schwarz@oss.schwarz.eu'
+url = 'http://www.schwarz.eu/opensource/projects/pymta'
+download_url = 'http://www.schwarz.eu/opensource/projects/%(name)s/download/%(version)s/%(name)s-%(version)s.tar.gz' % dict(name=name, version=version)
+copyright = u'2008-2010 Felix Schwarz'
+license='MIT'
 
