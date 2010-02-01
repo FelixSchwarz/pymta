@@ -2,7 +2,7 @@
 # 
 # The MIT License
 # 
-# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# Copyright (c) 2008-2010 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,10 +22,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from unittest import TestCase
 
 from pymta import SMTPSession
 from pymta.api import IAuthenticator
+from pymta.lib import PythonicTestCase
 from pymta.test_util import BlackholeDeliverer
 
 
@@ -67,14 +67,16 @@ class DummyAuthenticator(IAuthenticator):
         return username == password
 
 
-class CommandParserTestCase(TestCase):
+class CommandParserTestCase(PythonicTestCase):
 
     def setUp(self, policy=None):
+        self.super()
         self.init(policy=policy)
     
     def tearDown(self):
         if self.command_parser.open:
             self.close_connection()
+        self.super()
     
     def init(self, policy=None, authenticator=None):
         self.command_parser = MockCommandParser()
@@ -87,8 +89,8 @@ class CommandParserTestCase(TestCase):
     def check_reply_code(self, code, reply_text, expected_first_digit):
         first_code_digit = int(str(code)[0])
         smtp_reply = "%s %s" % (code, reply_text)
-        if expected_first_digit != None:
-            self.assertEqual(expected_first_digit, first_code_digit, smtp_reply)
+        if expected_first_digit is not None:
+            self.assert_equals(expected_first_digit, first_code_digit, smtp_reply)
     
     def send(self, command, data=None, expected_first_digit=2):
         number_replies_before = len(self.command_parser.replies)
@@ -101,8 +103,8 @@ class CommandParserTestCase(TestCase):
     def close_connection(self):
         self.send('quit')
         code, reply_text = self.command_parser.replies[-1]
-        self.assertEqual(221, code)
-        self.assertEqual('localhost closing connection', reply_text)
-        self.assertEqual(False, self.command_parser.open)
+        self.assert_equals(221, code)
+        self.assert_equals('localhost closing connection', reply_text)
+        self.assert_false(self.command_parser.open)
 
 
