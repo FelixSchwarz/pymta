@@ -26,11 +26,10 @@ import base64
 import binascii
 import re
 
-from repoze.workflow.statemachine import StateMachine, StateMachineError
-
 from pymta.compat import set
 from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
+from pymta.statemachine import StateMachine, StateMachineError
 
 
 __all__ = ['SMTPSession']
@@ -73,20 +72,20 @@ class SMTPSession(object):
     # -------------------------------------------------------------------------
     # State machine building
     
-    def _add_state(self, from_state, smtp_command, to_state):
+    def _add_state(self, from_state, to_state, smtp_command):
         handler_function = self._dispatch_commands
         self.state.add(from_state, smtp_command, to_state, handler_function)
     
-    def _get_all_real_states(self, including_quit=False):
-        states = set()
-        for key in self.state.states:
-            command_name = key[1]
-            new_state = self.state.states[key]
-            state_name = new_state[0]
-            if state_name not in ['new']:
-                if including_quit or (state_name != 'finished'):
-                    states.add((command_name, state_name))
-        return states
+    def _get_all_commands(self, including_quit=False):
+        commands = set()
+        for actions in self.state._transitions.values():
+            for command_name, transition in actions.items():
+                target_state = transition[0]
+                if target_state in ['new']:
+                    continue
+                if including_quit or (target_state != 'finished'):
+                    commands.add(command_name)
+        return commands
     
     def get_all_allowed_internal_commands(self):
         """Returns an iterable which includes all allowed commands. This does
@@ -98,7 +97,7 @@ class SMTPSession(object):
         commands (use get_all_allowed_smtp_commands for that) so there will be
         'MAIL FROM' instead of 'MAIL'."""
         states = set()
-        for command_name, invalid in self._get_all_real_states(including_quit=True):
+        for command_name in self._get_all_commands(including_quit=True):
             if command_name not in ['GREET', 'MSGDATA']:
                 states.add(command_name)
         return states
@@ -111,7 +110,7 @@ class SMTPSession(object):
         return states
     
     def _add_rset_transitions(self):
-        for command_name, state_name in self._get_all_real_states():
+        for state_name in self.state.known_non_final_states():
             if state_name == 'new':
                 self._add_state(state_name, 'RSET',  state_name)
             else:
@@ -121,9 +120,7 @@ class SMTPSession(object):
         """HELP, NOOP and QUIT should be possible from everywhere so we 
         need to add these transitions to all states configured so far."""
         states = set()
-        for key in self.state.states:
-            new_state = self.state.states[key]
-            state_name = new_state[0]
+        for state_name in self.state.known_states():
             if state_name not in ['new', 'finished']:
                 states.add(state_name)
         for state in states:
@@ -133,7 +130,7 @@ class SMTPSession(object):
     
     
     def _build_state_machine(self):
-        self.state = StateMachine('_state', initial_state='new')
+        self.state = StateMachine(initial_state='new')
         self._add_state('new',     'GREET', 'greeted')
         self._add_state('greeted', 'HELO',  'initialized')
         
@@ -154,7 +151,7 @@ class SMTPSession(object):
         self._add_state('receiving_message', 'MSGDATA',  'initialized')
         self._add_help_noop_and_quit_transitions()
         self._add_rset_transitions()
-        self.valid_commands = [command for from_state, command in self.state.states]
+        self.valid_commands = self.state.known_actions()
     
     # -------------------------------------------------------------------------
     
@@ -176,7 +173,7 @@ class SMTPSession(object):
         max_message_size = self._get_max_message_size_from_policy()
         self._command_parser.set_maximum_message_size(max_message_size)
     
-    def _dispatch_commands(self, from_state, to_state, smtp_command, ob):
+    def _dispatch_commands(self, from_state, to_state, smtp_command):
         """This method dispatches a SMTP command to the appropriate handler 
         method. It is called after a new command was received and a valid 
         transition was found."""
@@ -240,7 +237,7 @@ class SMTPSession(object):
         """This method is called when a new SMTP session is opened.
         [PUBLIC API]
         """
-        self._state = 'new'
+        self.state.set_state('new')
         self._message = Message(Peer(remote_ip, remote_port))
         
         decision, response_sent = self.is_allowed('accept_new_connection', 
@@ -260,17 +257,17 @@ class SMTPSession(object):
         """
         self._command_arguments = data
         self.please_close_connection_after_response(False)
+        # SMTP commands must be treated as case-insensitive
         command = smtp_command.upper()
         try:
             try:
-                # SMTP commands must be treated as case-insensitive
-                self.state.execute(self, command)
+                self.state.execute(command)
             except StateMachineError:
                 if command not in self.valid_commands:
                     self.reply(500, 'unrecognized command "%s"' % smtp_command)
                 else:
                     msg = 'Command "%s" is not allowed here' % smtp_command
-                    allowed_transitions = self.state.transitions(self)
+                    allowed_transitions = self.state.allowed_actions()
                     if len(allowed_transitions) > 0:
                         msg += ', expected on of %s' % allowed_transitions
                         self.reply(503, msg)
@@ -440,7 +437,7 @@ class SMTPSession(object):
         sender, extensions = self._split_mail_from_parameter(data)
         # TODO: Check for good email address!
         # TODO: Check for single email address!
-        uses_esmtp = (self._state in ['esmtp_initialized', 'authenticated'])
+        uses_esmtp = (self.state.state() in ['esmtp_initialized', 'authenticated'])
         if uses_esmtp:
             self._check_mail_extensions(extensions)
         elif len(extensions) > 0:

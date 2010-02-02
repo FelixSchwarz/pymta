@@ -19,7 +19,6 @@ setup(
       download_url=download_url,
       license=license,
         
-      install_requires=['repoze.workflow'],
       zip_safe=True,
       packages=['pymta'],
       classifiers = [

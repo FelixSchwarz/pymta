@@ -63,7 +63,7 @@ In the beginning I used this module for my unit tests too but quite soon I had
 to  realize that the code is old and messy and it is nearly impossible to 
 implement a custom behavior (e.g. reject certain recipients). pymta evolved out 
 of smtpd after multiple refactorings based on the idea to use a simple finite 
-state machine (repoze.workflow).  
+state machine (initially repoze.workflow, now including a custom one).  
 
 **Twisted Mail** is probably the most featureful SMTP server implementation 
 in Python available right now. It uses the twisted framework which can be 
@@ -95,24 +95,13 @@ Installation and Setup
 ======================
 
 pymta is just a Python library which uses setuptools so it does not require 
-a special setup. The only hard dependency is repoze.workflow (0.2dev). To serve
-multiple connections in parallel, pymta uses the 
+a special setup. To serve multiple connections in parallel, pymta uses the 
 `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ module 
 which was added to the standard library in Python 2.6 (there are backports for
 Python 2.4 and 2.5).
 
 pymta supports Python 2.3-2.6. With Python 2.3 you can only serve one 
 connection at a time due to the lack of a multiprocessing module.
-
-repoze.workflow
----------------
-repoze.workflow is not available in pypi (yet?) so you have to install it
-directly from the svn::
-  
-  easy_install http://svn.repoze.org/repoze.workflow/trunk/
-
-repoze.workflow requires zope.interface which is available via pypi (and 
-installable via the package manager for most Linux distributions).
 
 multiprocessing
 ---------------
@@ -351,16 +340,13 @@ pymta itself is licensed under the very liberal `MIT license <http://creativecom
 (see COPYING.txt in the source archive) so there are virtually no restrictions
 where you can integrate the code.
 
-However, pymta depends on some other packages which come with different licenses.
-In order to ease license auditing, I'll list the other licenses here (no 
-guarantees though, check yourself before you trust):
+However, pymta depends on some (few) other packages which come with different 
+licenses. In order to ease license auditing, I'll list the other licenses here 
+(no guarantees though, check yourself before you trust):
 
 * `Python <http://www.python.org>`_ uses the 
   `Python Software Foundation License 2 <http://www.python.org/download/releases/2.4.2/license/>`_ 
   which is a BSD-style license.
-* `repoze.workflow <http://svn.repoze.org/repoze.workflow/>`_ uses a `BSD-like license without advertising clause <http://svn.repoze.org/repoze.workflow/trunk/LICENSE.txt>`_ which is very similar to the `Zope Public License <http://www.zope.org/Resources/ZPL>`_ without the trademark clause.
-* repoze.workflow depends on `zope.interface <http://pypi.python.org/pypi/zope.interface>`_ 
-  which uses the BSD-like `Zope Public License 2.1 <http://www.zope.org/Resources/ZPL>`_.
 * The `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ 
   uses a `3-clause BSD license <http://creativecommons.org/licenses/BSD/>`_.
 

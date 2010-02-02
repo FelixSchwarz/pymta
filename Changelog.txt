@@ -2,6 +2,12 @@
 Changelog for pymta
 ===================
 
+0.5dev
+- Dropped dependency to repoze.workflow because the module added a lot of 
+  dependencies recently (sixs others in total). The new, custom state machine
+  also supports flags and conditions which suits SMTP very much.
+
+
 0.4.0 (08.06.2009)
 - Compatibility fixes for Python 2.3-2.6
 - Policies can drop connection to the client before or after the response
