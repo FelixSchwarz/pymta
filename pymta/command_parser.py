@@ -26,10 +26,9 @@ from Queue import Empty
 import re
 import socket
 
-from repoze.workflow.statemachine import StateMachine, StateMachineError
-
 from pymta.exceptions import SMTPViolationError
 from pymta.session import SMTPSession
+from pymta.statemachine import StateMachine
 
 __all__ = ['SMTPCommandParser']
 
@@ -87,19 +86,18 @@ class SMTPCommandParser(object):
         def _command_completed(from_state, to_state, smtp_command, instance):
             self.data = None
         
-        def _start_receiving_message(from_state, to_state, smtp_command, instance):
+        def _start_receiving_message(from_state, to_state, smtp_command):
             self.terminator = '%s.%s' % (self.LINE_TERMINATOR, self.LINE_TERMINATOR)
             self.data = []
         
-        def _finished_receiving_message(from_state, to_state, smtp_command, instance):
+        def _finished_receiving_message(from_state, to_state, smtp_command):
             self.terminator = self.LINE_TERMINATOR
             self.data = None
         
-        self.state = StateMachine('_state', initial_state='commands')
-        self._state = 'commands'
-        self.state.add('commands', 'COMMAND', 'commands', _command_completed)
-        self.state.add('commands', 'DATA',    'data', _start_receiving_message)
-        self.state.add('data',     'COMMAND', 'commands', _finished_receiving_message)
+        self.state = StateMachine(initial_state='commands')
+        self.state.add('commands', 'commands', 'COMMAND', _command_completed)
+        self.state.add('commands', 'data',     'DATA', _start_receiving_message)
+        self.state.add('data',     'commands', 'COMMAND', _finished_receiving_message)
     
     def primary_hostname(self):
         # TODO: This should go into a config object!
@@ -130,7 +128,7 @@ class SMTPCommandParser(object):
         self._channel.write(msg)
     
     def collect_incoming_data(self, data):
-        if self._state == 'commands':
+        if self.state.state() == 'commands':
             self.data = data
         elif data != '.':
             # In DATA mode '.' on a line by itself signals the 'end of message'.
@@ -153,12 +151,12 @@ class SMTPCommandParser(object):
     def switch_to_command_mode(self):
         """Called from the SMTPSession when a message was received and the 
         client is expected to send single commands again."""
-        self.state.execute(self, 'COMMAND')
+        self.state.execute('COMMAND')
     
     def switch_to_data_mode(self):
         """Called from the SMTPSession when the client should start transfering
         the actual message data."""
-        self.state.execute(self, 'DATA')
+        self.state.execute('DATA')
     
     def _assemble_msgdata(self, input_data):
         """Uses the input data to recover the original payload (includes 
@@ -180,7 +178,7 @@ class SMTPCommandParser(object):
     
     def found_terminator(self):
         input_data = self.data
-        if self._state == 'commands':
+        if self.state.state() == 'commands':
             command, parameter = self._parser.parse(input_data)
             self.session.handle_input(command, parameter)
         else:
