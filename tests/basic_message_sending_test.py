@@ -73,9 +73,10 @@ class BasicMessageSendingTest(CommandParserTestCase):
         expect_invalid('')
         expect_invalid('  ')
         expect_invalid(None)
-        # TODO: This is questionable - does SMTP realy require hostname|ip address?
+        # Even if we don't enforce that the helo parameter must be a valid host
+        # name (as required as per RFC 2821), at least there should be only 
+        # one parameter.
         expect_invalid('foo bar')
-        expect_invalid('foo_bar')
     
     def test_helo_can_send_ipv4_address_in_brackets(self):
         # smtplib in Python 2.6.2 does this at least...
@@ -139,7 +140,6 @@ class BasicMessageSendingTest(CommandParserTestCase):
         expect_invalid('  ')
         expect_invalid(None)
         expect_invalid('foo bar')
-        expect_invalid('foo_bar')
     
     def test_auth_plain_without_authenticator_is_rejected(self):
         self.send('EHLO', 'foo.example.com')

@@ -35,10 +35,6 @@ from pymta.statemachine import StateMachine, StateMachineError
 __all__ = ['SMTPSession']
 
 
-# regular expression deliberately taken from
-# http://stackoverflow.com/questions/106179/regular-expression-to-match-hostname-or-ip-address#106223
-regex_string = r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$'
-
 
 class PolicyDenial(SMTPViolationError):
     pass
@@ -66,7 +62,6 @@ class SMTPSession(object):
         self._is_connected = True
         self._message = None
         
-        self.hostname_regex = re.compile(regex_string, re.IGNORECASE)
         self._build_state_machine()
     
     # -------------------------------------------------------------------------
@@ -272,7 +267,9 @@ class SMTPSession(object):
                         msg += ', expected on of %s' % allowed_transitions
                         self.reply(503, msg)
             except InvalidParametersError, e:
+                print 'e', e, e.response_sent
                 if not e.response_sent:
+                    print 'smtp_command', smtp_command, repr(data)
                     msg = 'Syntactically invalid %s argument(s)' % smtp_command
                     self.reply(501, msg)
             except PolicyDenial, e:
@@ -347,11 +344,11 @@ class SMTPSession(object):
     
     def _process_helo_or_ehlo(self, policy_methodname, reply_method):
         helo_string = (self._command_arguments or '').strip()
-        if re.match('\[(.*)\]', helo_string):
-            # hack to allow '[127.0.0.1]'
-            helo_string = helo_string[1:-1]
-        valid_hostname_syntax = (self.hostname_regex.match(helo_string) is not None)
-        if not valid_hostname_syntax:
+        # TODO: Validate for non-empty ASCII string
+        # By default, no meaning is assigned to the helo string - there are just
+        # too many clients that don't (can't) use a valid DNS name here.
+        if (len(helo_string) == 0) or (re.search('\s', helo_string) is not None):
+            print 'helo string', repr(helo_string), re.search('\s', helo_string)
             raise InvalidParametersError(helo_string)
         else:
             decision, response_sent = self.is_allowed(policy_methodname, helo_string, self._message)
