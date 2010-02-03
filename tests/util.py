@@ -95,7 +95,7 @@ class CommandParserTestCase(PythonicTestCase):
     def send(self, command, data=None, expected_first_digit=2):
         number_replies_before = len(self.command_parser.replies)
         self.session.handle_input(command, data)
-        self.assertEqual(number_replies_before + 1, len(self.command_parser.replies))
+        self.assert_equals(number_replies_before + 1, len(self.command_parser.replies))
         code, reply_text = self.command_parser.replies[-1]
         self.check_reply_code(code, reply_text, expected_first_digit=expected_first_digit)
         return (code, reply_text)

@@ -67,9 +67,9 @@ class SMTPSession(object):
     # -------------------------------------------------------------------------
     # State machine building
     
-    def _add_state(self, from_state, to_state, smtp_command):
+    def _add_state(self, from_state, to_state, smtp_command, **kwargs):
         handler_function = self._dispatch_commands
-        self.state.add(from_state, smtp_command, to_state, handler_function)
+        self.state.add(from_state, smtp_command, to_state, handler_function, **kwargs)
     
     def _get_all_commands(self, including_quit=False):
         commands = set()
@@ -129,13 +129,12 @@ class SMTPSession(object):
         self._add_state('new',     'GREET', 'greeted')
         self._add_state('greeted', 'HELO',  'initialized')
         
-        self._add_state('greeted', 'EHLO',  'esmtp_initialized')
+        self._add_state('greeted', 'EHLO',  'initialized', operations=('set_esmtp',))
         
         # ----
         self._add_state('initialized', 'MAIL FROM',  'sender_known')
-        self._add_state('esmtp_initialized', 'MAIL FROM',  'sender_known')
         
-        self._add_state('esmtp_initialized', 'AUTH PLAIN', 'authenticated')
+        self._add_state('initialized', 'AUTH PLAIN', 'authenticated', condition='if_esmtp')
         self._add_state('authenticated', 'MAIL FROM',  'sender_known')
         # ----
         
@@ -267,9 +266,7 @@ class SMTPSession(object):
                         msg += ', expected on of %s' % allowed_transitions
                         self.reply(503, msg)
             except InvalidParametersError, e:
-                print 'e', e, e.response_sent
                 if not e.response_sent:
-                    print 'smtp_command', smtp_command, repr(data)
                     msg = 'Syntactically invalid %s argument(s)' % smtp_command
                     self.reply(501, msg)
             except PolicyDenial, e:
@@ -348,7 +345,6 @@ class SMTPSession(object):
         # By default, no meaning is assigned to the helo string - there are just
         # too many clients that don't (can't) use a valid DNS name here.
         if (len(helo_string) == 0) or (re.search('\s', helo_string) is not None):
-            print 'helo string', repr(helo_string), re.search('\s', helo_string)
             raise InvalidParametersError(helo_string)
         else:
             decision, response_sent = self.is_allowed(policy_methodname, helo_string, self._message)
@@ -434,7 +430,7 @@ class SMTPSession(object):
         sender, extensions = self._split_mail_from_parameter(data)
         # TODO: Check for good email address!
         # TODO: Check for single email address!
-        uses_esmtp = (self.state.state() in ['esmtp_initialized', 'authenticated'])
+        uses_esmtp = (self.state.is_set('esmtp'))
         if uses_esmtp:
             self._check_mail_extensions(extensions)
         elif len(extensions) > 0:

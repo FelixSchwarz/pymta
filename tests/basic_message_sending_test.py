@@ -90,13 +90,16 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.assert_equals('unrecognized command "invalid"', reply_text)
         self.close_connection()
     
-    def test_send_simple_mail(self):
-        self.send('HELO', 'foo.example.com')
+    def _send_mail(self, rfc822_msg):
         self.send('MAIL FROM', 'foo@example.com')
         self.send('RCPT TO', 'bar@example.com')
-        rfc822_msg = 'Subject: Test\n\nJust testing...\n'
         self.send('DATA', expected_first_digit=3)
         self.send('MSGDATA', rfc822_msg)
+    
+    def test_send_simple_mail(self):
+        rfc822_msg = 'Subject: Test\n\nJust testing...\n'
+        self.send('HELO', 'foo.example.com')
+        self._send_mail(rfc822_msg)
         self.close_connection()
         
         received_messages = self.deliverer.received_messages
@@ -230,4 +233,9 @@ class BasicMessageSendingTest(CommandParserTestCase):
         code, reply_text = self.command_parser.replies[-1]
         self.assert_equals(501, code)
         self.assert_equals('No SMTP extensions allowed for plain SMTP', reply_text)
+    
+    def test_can_still_use_esmtp_after_first_mail(self):
+        self.send('EHLO', 'foo.example.com')
+        self._send_mail('Subject: First Message\n\nJust testing...\n')
+        self.send('MAIL FROM', '<foo@example.com>   size=106530  ')
 
