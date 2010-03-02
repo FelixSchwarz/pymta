@@ -21,11 +21,11 @@ class PythonicTestCase(TestCase):
     def assert_raises(self, exception_type, callable, *args, **kwargs):
         try:
             callable(*args, **kwargs)
-            # We want the same error message as assertRaises but we must not 
-            # assume that callable is idempotent
-            self.assertRaises(exception_type, lambda: None)
         except exception_type, e:
             return e
+        # We want the same error message as assertRaises but we must not 
+        # assume that callable is idempotent
+        self.assertRaises(exception_type, lambda: None)
     
     def assert_false(self, actual, msg=None):
         self.assertEquals(False, actual, msg=msg)
