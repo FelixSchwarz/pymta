@@ -2,7 +2,7 @@
 # 
 # The MIT License
 # 
-# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# Copyright (c) 2008-2010 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@
 
 import smtplib
 import socket
+import time
 
 from pymta.api import IMTAPolicy
 from pymta.test_util import DebuggingMTA, SMTPTestCase
@@ -44,8 +45,7 @@ class BasicSMTPTest(SMTPTestCase):
                             policy_class=policy_class)
     
     def init_mta(self, policy_class=IMTAPolicy):
-        self.super()
-        super(BasicSMTPTest, self).init_mta(policy_class)
+        self.super()    
         self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
         self.connection.connect(self.hostname, self.listen_port)
@@ -166,7 +166,22 @@ class BasicSMTPTest(SMTPTestCase):
         self.assert_equals(552, e.smtp_code)
         self.assert_equals('message exceeds fixed maximum message size', e.smtp_error)
     
-    def test_workerprocess_detects_closed_connections(self):
+    def service_is_available(self):
+        # On a normal system we should be able to reconnect after a dropped
+        # connection within two seconds under all circumstances.
+        old_default = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(2)
+        try:
+            try:
+                self.connection.connect(self.hostname, self.listen_port)
+                return True
+            finally:
+                socket.setdefaulttimeout(old_default)
+        except socket.timeout:
+            return False
+        
+    
+    def test_workerprocess_detects_closed_connections_when_reading(self):
         """Check that the WorkerProcess gracefully handles connections which are
         closed without QUIT. This can happen due to network problems or 
         unfriendly clients."""
@@ -176,14 +191,31 @@ class BasicSMTPTest(SMTPTestCase):
         # In 0.3 the WorkerProcess would hang and start to eat up the whole CPU
         # so we need to set a sensible timeout so that this test will fail with
         # an appropriate exception.
-        # On a normal system we should be able to reconnect after a dropped
-        # connection within two seconds under all circumstances.
-        old_default = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(2)
-        try:
-            self.connection.connect(self.hostname, self.listen_port)
-        finally:
-            socket.setdefaulttimeout(old_default)
-
+        self.assert_true(self.service_is_available())
+    
+    def test_workerprocess_detects_closed_connections_when_writing(self):
+        """Check that the WorkerProcess gracefully handles connections which are
+        closed without QUIT - remaining output is suppressed. This can happen 
+        due to network problems or unfriendly clients."""
+        # Basically the problem also occurs without waiting - however sleeping a
+        # bit increases the likelyhood to trigger to problem. We need to make 
+        # sure that the server writes to a already closed TCP connection.
+        class WaitingPolicy(IMTAPolicy):
+            def accept_helo(self, helo_string, message):
+                is_first_time = getattr(self, 'is_first_time', False)
+                if is_first_time:
+                    time.sleep(1)
+                # Also the socket will buffer some data - make sure the system
+                # actually writes data to the socket so we get an exception.
+                return (False, (552, ('Go away',)*10))
+        self.init_mta(policy_class=WaitingPolicy)
+        
+        # don't wait for an answer as .helo() does
+        self.connection.putcmd('helo', 'foo')
+        self.connection.close()
+        
+        time.sleep(0.5)
+        self.assert_true(self.service_is_available())
+        
 
 

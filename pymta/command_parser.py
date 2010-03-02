@@ -212,6 +212,7 @@ class WorkerProcess(object):
         self._chatter = None
         self._max_size = None
         self._input_too_big = False
+        self._ignore_write_operations = False
     
     def _get_instance_from_class(self, class_reference):
         instance = None
@@ -280,10 +281,15 @@ class WorkerProcess(object):
         Setting a maximum size of None disables any size-checking."""
         self._max_size = max_size
     
-    def chat_with_peer(self, connection_info):
+    def _setup_new_connection(self, connection_info):
         self._connection, (remote_ip_string, remote_port) = connection_info
+        self._ignore_write_operations = False
+        self._input_too_big = False
         self._chatter = SMTPCommandParser(self, remote_ip_string, remote_port, 
                             self._deliverer, self._policy, self._authenticator)
+    
+    def chat_with_peer(self, connection_info):
+        self._setup_new_connection(connection_info)
         while self.is_connected():
             try:
                 data = self.readline()
@@ -295,8 +301,7 @@ class WorkerProcess(object):
                     self._input_too_big = False
             except ClientDisconnectedError:
                 if self.is_connected():
-                    self._connection.close()
-                    self._connection = None
+                    self.close()
     
     def is_connected(self):
         return (self._connection is not None)
@@ -326,12 +331,22 @@ class WorkerProcess(object):
     
     def close(self):
         """Closes the connection to the client."""
-        assert self.is_connected()
-        self._connection.close()
-        self._connection = None
+        if self.is_connected():
+            self._connection.close()
+            self._connection = None
     
     def write(self, data):
         """Sends some data to the client."""
+        # I don't want to add a separate 'Client disconnected' logic for sending.
+        # Therefore I just ignore any writes after the first error - the server
+        # won't send that much data anyway. Afterwards the read will detect the
+        # broken connection and we quit.
+        if self._ignore_write_operations:
+           return 
         assert self.is_connected()
-        self._connection.send(data)
+        try:
+            self._connection.send(data)
+        except socket.error, e:
+            self.close()
+            self._ignore_write_operations = True
 

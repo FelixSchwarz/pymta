@@ -10,6 +10,7 @@ Changelog for pymta
   send real host names)
 - Fixed bug - ESMTP session switched back to plain SMTP after the first mail 
   was sent
+- Fixed bug - Hang after sending data to a broken connection
 
 
 0.4.0 (08.06.2009)
