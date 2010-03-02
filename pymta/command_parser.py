@@ -2,7 +2,7 @@
 #
 # The MIT License
 # 
-# Copyright (c) 2008-2009 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
+# Copyright (c) 2008-2010 Felix Schwarz <felix.schwarz@oss.schwarz.eu>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,7 @@ class ParserImplementation(object):
         parameter = None
         
         match = self.parse_regex.search(command)
-        if match != None:
+        if match is not None:
             command = match.group(1)
             parameter = match.group(2).strip()
         return command, parameter
@@ -63,8 +63,8 @@ class SMTPCommandParser(object):
     
     The original 'SMTPChannel' class from Python.org handled all communication 
     with asynchat, implemented a extremely simple state machine and processed 
-    the data. Implementing hooks in that design (or adding fine-grained 
-    policies) was not possible at all with the previous design."""
+    the data. Implementing hooks (or adding fine-grained policies) was not 
+    possible at all in the previous architecture."""
     
     LINE_TERMINATOR = '\r\n'
 
@@ -118,7 +118,7 @@ class SMTPCommandParser(object):
     def push(self, code, msg=None):
         """Send a message to the peer (using the correct SMTP line terminators
         (usually only called from the SMTPSession)."""
-        if msg == None:
+        if msg is None:
             msg = code
         else:
             msg = '%s %s' % (str(code), msg)
@@ -215,7 +215,7 @@ class WorkerProcess(object):
     
     def _get_instance_from_class(self, class_reference):
         instance = None
-        if class_reference != None:
+        if class_reference is not None:
             instance = class_reference()
         return instance
     
@@ -229,7 +229,7 @@ class WorkerProcess(object):
                 try:
                     new_token = self._queue.get_nowait()
                     self._queue.put(new_token)
-                    if new_token == None:
+                    if new_token is None:
                         return None
                 except Empty:
                     pass
@@ -251,19 +251,19 @@ class WorkerProcess(object):
     def run(self):
         token = None
         def have_token():
-            return (token != None)
+            return (token is not None)
         
         try:
             while True:
                 token = self._get_token_with_timeout(1)
                 if not have_token():
                     break
-                assert token == True
+                assert token is True
                 
                 connection_info = self._wait_for_connection()
                 self._queue.put(token)
                 token = None
-                if connection_info == None:
+                if connection_info is None:
                     break
                 self.chat_with_peer(connection_info)
         finally:
@@ -299,7 +299,7 @@ class WorkerProcess(object):
                     self._connection = None
     
     def is_connected(self):
-        return (self._connection != None)
+        return (self._connection is not None)
     
     def readline(self):
         """Read as much data as possible until a line terminator was 
