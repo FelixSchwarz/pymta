@@ -234,6 +234,8 @@ class WorkerProcess(object):
                         return None
                 except Empty:
                     pass
+            except KeyboardInterrupt:
+                return None
         connection.settimeout(socket.getdefaulttimeout())
         return connection, remote_address
     
@@ -247,6 +249,8 @@ class WorkerProcess(object):
                 break
             except Empty:
                 pass
+            except KeyboardInterrupt:
+                break
         return token
     
     def run(self):
