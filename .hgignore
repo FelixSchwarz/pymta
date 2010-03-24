@@ -1,5 +1,6 @@
 .project
 .pydevproject
+.settings
 build
 dist
 temp_eggs
@@ -8,5 +9,7 @@ syntax: glob
 *.pyc
 *.egg-info
 *.egg
+*.orig
+*.rej
 site.py
 easy-install.pth
