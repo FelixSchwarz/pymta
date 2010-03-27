@@ -18,7 +18,9 @@ setup(
       url=url,
       download_url=download_url,
       license=license,
-        
+      
+      install_requires=['pycerberus'],
+      
       zip_safe=True,
       packages=['pymta'],
       classifiers = [

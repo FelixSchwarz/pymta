@@ -176,8 +176,8 @@ class SMTPSession(object):
         try:
             handler_method = getattr(self, name_handler_method)
         except AttributeError:
-            base_msg = 'No handler for %s though transition is defined (no method %s)'
-            print base_msg % (smtp_command, name_handler_method)
+            # base_msg = 'No handler for %s though transition is defined (no method %s)'
+            # print base_msg % (smtp_command, name_handler_method)
             self.reply(451, 'Temporary Local Problem: Please come back later')
         else:
             # Don't catch InvalidParametersError here - else the state would
