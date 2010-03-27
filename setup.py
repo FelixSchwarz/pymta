@@ -19,7 +19,7 @@ setup(
       download_url=download_url,
       license=license,
       
-      install_requires=['pycerberus'],
+      install_requires=['pycerberus >= 0.3'],
       
       zip_safe=True,
       packages=['pymta'],

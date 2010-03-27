@@ -98,10 +98,12 @@ pymta is just a Python library which uses setuptools so it does not require
 a special setup. To serve multiple connections in parallel, pymta uses the 
 `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ module 
 which was added to the standard library in Python 2.6 (there are backports for
-Python 2.4 and 2.5).
+Python 2.4 and 2.5). Furthermore you need to install 
+`pycerberus <http://www.schwarz.eu/opensource/projects/pycerberus>`_.
 
 pymta supports Python 2.3-2.6. With Python 2.3 you can only serve one 
 connection at a time due to the lack of a multiprocessing module.
+
 
 multiprocessing
 ---------------
@@ -349,6 +351,8 @@ licenses. In order to ease license auditing, I'll list the other licenses here
   which is a BSD-style license.
 * The `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ 
   uses a `3-clause BSD license <http://creativecommons.org/licenses/BSD/>`_.
+* `pycerberus <http://www.schwarz.eu/opensource/projects/pycerberus>`_ uses
+  the MIT license, just like pymta.
 
 I believe that all licenses are GPL compatible and do not require you to publish
 your code if you don't like to.
