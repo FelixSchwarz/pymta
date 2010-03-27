@@ -50,5 +50,18 @@ class PythonicTestCase(TestCase):
     
     def assert_almost_equals(self, expected, actual, places=None, msg=None):
         self.assertAlmostEqual(expected, actual, places=places, msg=msg)
+    
+    def assert_contains(self, expected_value, actual_iterable, msg=None):
+        if expected_value in actual_iterable:
+            return
+        
+        message = msg or '%s not in %s' % (repr(expected_value), repr(actual_iterable))
+        raise self.failureException(message)
+    
+    def assert_dict_contains(self, expected_sub_dict, actual_super_dict):
+        for key, value in expected_sub_dict.items():
+            message = "%s:%s not in %s" % (repr(key), repr(value), repr(actual_super_dict))
+            self.assert_contains(key, actual_super_dict, msg=message)
+            self.assert_equals(value, actual_super_dict[key], msg=message)
 
 
