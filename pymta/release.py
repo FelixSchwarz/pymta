@@ -2,7 +2,7 @@
 "Release information about pymta."
 
 name = 'pymta'
-version = '0.5dev'
+version = '0.6dev'
 description = 'library to build a custom SMTP server'
 long_description = '''
 pymta is a library to build a custom SMTP server in Python. This is useful if 
@@ -15,6 +15,20 @@ you want to...
 
 Changelog
 ******************************
+
+0.5.0 (07.04.2010)
+==================
+- Dropped dependency to repoze.workflow because the module added a lot of 
+  dependencies recently (six others in total). The new, custom state machine
+  also supports flags and conditions which suits SMTP very much.
+- Added dependency to pycerberus (>= 0.3.1) to validate all sent parameters
+  thoroughly with sensible error messages.
+- All inputs from peers is now validated
+- relaxed restrictions for the HELO/EHLO parameter (as real world clients don't
+  send real host names)
+- Fixed bug - ESMTP session switched back to plain SMTP after the first mail 
+  was sent
+- Fixed bug - Hang after sending data to a broken connection
 
 0.4.0 (08.06.2009)
 ==================
