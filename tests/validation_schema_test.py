@@ -27,7 +27,7 @@ from pycerberus.errors import InvalidDataError
 from pycerberus.validators import StringValidator
 
 from pymta.lib import PythonicTestCase
-from pymta.validation import MailFromSchema, SMTPCommandArgumentsSchema
+from pymta.validation import AuthPlainSchema, MailFromSchema, SMTPCommandArgumentsSchema
 
 
 class CommandWithoutParametersTest(PythonicTestCase):
@@ -40,7 +40,7 @@ class CommandWithoutParametersTest(PythonicTestCase):
     
     def test_bails_out_if_additional_parameters_are_passed(self):
         e = self.assert_raises(InvalidDataError, lambda: self.schema().process('fnord'))
-        self.assert_equals('Unknown argument \'fnord\'', e.msg())
+        self.assert_equals('Syntactically invalid argument(s) \'fnord\'', e.msg())
 
 
 class CommandWithSingleParameterTest(PythonicTestCase):
@@ -115,6 +115,13 @@ class MailFromSchemaTest(PythonicTestCase):
         self.assert_dict_contains({'email': 'foo@example.com', 'body': 'BINARYMIME'}, 
                                   schema.process(input_command, context={'esmtp': True}))
     
+    def test_ignores_whitespace_surrounding_extensions(self):
+        schema = self.schema()
+        schema.add('body', StringValidator())
+        input_command = '<foo@example.com>   BODY=BINARYMIME  '
+        self.assert_dict_contains({'email': 'foo@example.com', 'body': 'BINARYMIME'}, 
+                                  schema.process(input_command, context={'esmtp': True}))
+    
     def test_treats_extensions_as_case_insensitive(self):
         schema = self.schema()
         schema.add('body', StringValidator())
@@ -128,7 +135,7 @@ class MailFromSchemaTest(PythonicTestCase):
         e = self.assert_raises(InvalidDataError, call)
         self.assert_equals('Invalid arguments: \'foo bar\'', e.msg())
     
-    def _test_present_meaningful_error_message_for_unknown_extensions(self):
+    def test_present_meaningful_error_message_for_unknown_extensions(self):
         input_command = 'foo@example.com invalid=fnord'
         call = lambda: self.process(input_command, esmtp=True)
         e = self.assert_raises(InvalidDataError, call)
@@ -158,5 +165,41 @@ class MailFromSchemaTest(PythonicTestCase):
     def test_reject_non_numeric_size_parameter(self):
         input_command = 'foo@example.com SIZE=fnord'
         self.assert_raises(InvalidDataError, lambda: self.process(input_command, esmtp=True))
+
+
+class AuthPlainSchemaTest(PythonicTestCase):
+    
+    def schema(self):
+        return AuthPlainSchema()
+    
+    def process(self, input_string, esmtp=None):
+        context = {}
+        if esmtp is not None:
+            context['esmtp'] = esmtp
+        return self.schema().process(input_string, context=context)
+    
+    def test_can_extract_base64_decoded_string(self):
+        expected_parameters = dict(username='foo', password='foo ', authzid=None)
+        parameters = self.schema().process(self.base64(u'\x00foo\x00foo '))
+        self.assert_equals(expected_parameters, parameters)
+    
+    def base64(self, value):
+        return unicode(value).encode('base64').strip()
+    
+    def assert_bad_input(self, input):
+        e = self.assert_raises(InvalidDataError, lambda: self.schema().process(input))
+        return e
+    
+    def test_reject_more_than_one_parameter(self):
+        input = self.base64(u'\x00foo\x00foo') + ' ' + self.base64(u'\x00foo\x00foo')
+        self.assert_bad_input(input)
+    
+    def test_rejects_bad_base64(self):
+        e = self.assert_bad_input('invalid')
+        self.assert_equals('Garbled data sent', e.msg())
+    
+    def test_rejects_invalid_format(self):
+        e = self.assert_bad_input(u'foobar'.encode('base64'))
+        self.assert_equals('Garbled data sent', e.msg())
 
 

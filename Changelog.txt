@@ -8,6 +8,7 @@ Changelog for pymta
   also supports flags and conditions which suits SMTP very much.
 - Added dependency to pycerberus (>= 0.3) to validate all sent parameters
   thoroughly with sensible error messages.
+- All inputs from peers is now validated
 - relaxed restrictions for the HELO/EHLO parameter (as real world clients don't
   send real host names)
 - Fixed bug - ESMTP session switched back to plain SMTP after the first mail 

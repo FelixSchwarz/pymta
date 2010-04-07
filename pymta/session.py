@@ -22,14 +22,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import base64
-import binascii
-import re
+from pycerberus import InvalidDataError
 
 from pymta.compat import set
 from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
 from pymta.statemachine import StateMachine, StateMachineError
+from pymta.validation import AuthPlainSchema, HeloSchema, MailFromSchema, \
+    RcptToSchema, SMTPCommandArgumentsSchema
 
 
 __all__ = ['SMTPSession']
@@ -123,7 +123,6 @@ class SMTPSession(object):
             self._add_state(state, 'HELP',  state)
             self._add_state(state, 'QUIT',  'finished')
     
-    
     def _build_state_machine(self):
         self.state = StateMachine(initial_state='new')
         self._add_state('new',     'GREET', 'greeted')
@@ -164,8 +163,7 @@ class SMTPSession(object):
     def _set_size_restrictions(self):
         """Set the maximum allowed message in the underlying layer so that big 
         messages are not hold in memory before they are rejected."""
-        max_message_size = self._get_max_message_size_from_policy()
-        self._command_parser.set_maximum_message_size(max_message_size)
+        self._command_parser.set_maximum_message_size(self._max_message_size())
     
     def _dispatch_commands(self, from_state, to_state, smtp_command):
         """This method dispatches a SMTP command to the appropriate handler 
@@ -180,9 +178,9 @@ class SMTPSession(object):
             # print base_msg % (smtp_command, name_handler_method)
             self.reply(451, 'Temporary Local Problem: Please come back later')
         else:
-            # Don't catch InvalidParametersError here - else the state would
-            # be moved forward. Instead the handle_input will catch it and send
-            # out the appropriate reply.
+            # Don't catch InvalidDataError here - else the state would be moved 
+            # forward. Instead the handle_input will catch it and send out the 
+            # appropriate reply.
             handler_method()
     
     def _evaluate_decision(self, decision):
@@ -265,7 +263,11 @@ class SMTPSession(object):
                     if len(allowed_transitions) > 0:
                         msg += ', expected on of %s' % allowed_transitions
                         self.reply(503, msg)
+            except InvalidDataError, e:
+                self.reply(501, e.msg())
             except InvalidParametersError, e:
+                # TODO: Get rid of InvalidParametersError, shouldn't be 
+                # necessary anymore
                 if not e.response_sent:
                     msg = 'Syntactically invalid %s argument(s)' % smtp_command
                     self.reply(501, msg)
@@ -311,6 +313,11 @@ class SMTPSession(object):
     # -------------------------------------------------------------------------
     # Protocol handling functions (not public)
     
+    def arguments(self):
+        """Return the given parameters for the command as a string or an empty 
+        string"""
+        return self._command_arguments or ''
+    
     def smtp_greet(self):
         """This method handles not a real smtp command. It is called when a new
         connection was accepted by the server."""
@@ -320,18 +327,28 @@ class SMTPSession(object):
         reply_text = '%s Hello %s' % (primary_hostname, self._message.peer.remote_ip)
         self.reply(220, reply_text)
     
+    def validate(self, schema_class):
+        context = dict(esmtp=self.uses_esmtp())
+        return schema_class().process(self.arguments(), context=context)
+    
     def smtp_quit(self):
+        self.validate(SMTPCommandArgumentsSchema)
         primary_hostname = self._command_parser.primary_hostname
         reply_text = '%s closing connection' % primary_hostname
         self.reply(221, reply_text)
         self._command_parser.close_when_done()
     
     def smtp_noop(self):
+        self.validate(SMTPCommandArgumentsSchema)
         self.reply(250, 'OK')
     
     def smtp_help(self):
+        # deliberately no checking for additional parameters because RFC 821 
+        # says:
+        # "The command may take an argument (e.g., any command name) and 
+        #  return more specific information as a response."
         states = self.get_all_allowed_smtp_commands()
-        self.multiline_reply(214, (('Commands supported'), ' '.join(states)))
+        self.multiline_reply(214, ('Commands supported', ' '.join(states)))
     
     def _reply_to_helo(self, helo_string, response_sent):
         self._message.smtp_helo = helo_string
@@ -340,18 +357,13 @@ class SMTPSession(object):
             self.reply(250, primary_hostname)
     
     def _process_helo_or_ehlo(self, policy_methodname, reply_method):
-        helo_string = (self._command_arguments or '').strip()
-        # TODO: Validate for non-empty ASCII string
-        # By default, no meaning is assigned to the helo string - there are just
-        # too many clients that don't (can't) use a valid DNS name here.
-        if (len(helo_string) == 0) or (re.search('\s', helo_string) is not None):
-            raise InvalidParametersError(helo_string)
-        else:
-            decision, response_sent = self.is_allowed(policy_methodname, helo_string, self._message)
-            if decision:
-                reply_method(helo_string, response_sent)
-            elif not decision:
-                raise PolicyDenial(response_sent)
+        validated_data = self.validate(HeloSchema)
+        helo_string = validated_data['helo']
+        decision, response_sent = self.is_allowed(policy_methodname, helo_string, self._message)
+        if decision:
+            reply_method(helo_string, response_sent)
+        elif not decision:
+            raise PolicyDenial(response_sent)
     
     def smtp_helo(self):
         self._process_helo_or_ehlo('accept_helo', self._reply_to_helo)
@@ -371,9 +383,6 @@ class SMTPSession(object):
         if not decision:
             raise PolicyDenial(response_sent)
         assert response_sent == False
-        if self._authenticator == None:
-            self.reply(535, 'AUTH not available')
-            raise InvalidParametersError(response_sent=True)
         credentials_correct = \
             self._authenticator.authenticate(username, password, self._message.peer)
         if credentials_correct:
@@ -383,77 +392,40 @@ class SMTPSession(object):
             self.reply(535, 'Bad username or password')
     
     def smtp_auth_plain(self):
-        base64_credentials = self._command_arguments
-        try:
-            credentials = base64.decodestring(base64_credentials)
-        except binascii.Error:
-            raise InvalidParametersError(base64_credentials)
-        else:
-            match = re.search('^[^\x00]*\x00([^\x00]*)\x00([^\x00]*)$', credentials)
-            if match:
-                username, password = match.group(1), match.group(2)
-                self._check_password(username, password)
-            else:
-                raise InvalidParametersError(credentials)
+        if self._authenticator is None:
+            self.reply(535, 'AUTH not available')
+            raise InvalidParametersError(response_sent=True)
+        validated_data = self.validate(AuthPlainSchema)
+        self._check_password(validated_data['username'], validated_data['password'])
     
-    def _split_mail_from_parameter(self, data):
-        sender = data
-        extensions = {}
-        
-        # TODO: case insensitivity of extension names
-        verb_regex = re.compile('^\s*<(.*)>(?:\s*(\S+)\s*)*\s*$')
-        match = verb_regex.search(data)
-        if match:
-            sender = match.group(1)
-            extension_string = match.group(2)
-            if extension_string is not None:
-                for extension in re.split('\s+', extension_string):
-                    if '=' in extension:
-                        name, parameter = extension.split('=', 1)
-                        extensions[name] = parameter
-                    else:
-                        extensions[extension] = True
-        return (sender, extensions)
+    def _check_size_restriction(self, extensions):
+        announced_size = extensions.get('size')
+        if announced_size is None:
+            return
+        max_message_size = self._max_message_size()
+        if max_message_size is None:
+            return
+        if announced_size > max_message_size:
+            self.reply(552, 'message exceeds fixed maximum message size')
+            raise InvalidParametersError('MAIL FROM', response_sent=True)
     
-    def _check_mail_extensions(self, extensions):
-        if 'size' in extensions:
-            # TODO: protect against non-numeric size!
-            announced_size = int(extensions['size'])
-            max_message_size = self._get_max_message_size_from_policy()
-            if max_message_size != None:
-                if announced_size > max_message_size:
-                    self.reply(552, 'message exceeds fixed maximum message size')
-                    raise InvalidParametersError('MAIL FROM', response_sent=True)
+    def uses_esmtp(self):
+        return self.state.is_set('esmtp')
     
     def smtp_mail_from(self):
-        data = self._command_arguments
-        sender, extensions = self._split_mail_from_parameter(data)
-        # TODO: Check for good email address!
-        # TODO: Check for single email address!
-        uses_esmtp = (self.state.is_set('esmtp'))
-        if uses_esmtp:
-            self._check_mail_extensions(extensions)
-        elif len(extensions) > 0:
-            self.reply(501, 'No SMTP extensions allowed for plain SMTP')
-            raise InvalidParametersError('MAIL', response_sent=True)
+        validated_data = self.validate(MailFromSchema)
+        sender = validated_data['email']
+        self._check_size_restriction(validated_data)
         decision, response_sent = self.is_allowed('accept_from', sender, self._message)
-        if decision:
-            self._message.smtp_from = sender
-            if not response_sent:
-                self.reply(250, 'OK')
-        elif not decision:
+        if not decision:
             raise PolicyDenial(response_sent)
-    
-    def _extract_email_address(self, parameter):
-        match = re.search('^<?(.*?)>?$', parameter)
-        if match:
-            return match.group(1)
-        raise InvalidParametersError(parameter)
+        self._message.smtp_from = sender
+        if not response_sent:
+            self.reply(250, 'OK')
     
     def smtp_rcpt_to(self):
-        # TODO: Check for good email address!
-        
-        email_address = self._extract_email_address(self._command_arguments)
+        validated_data = self.validate(RcptToSchema)
+        email_address = validated_data['email']
         decision, response_sent = self.is_allowed('accept_rcpt_to', email_address, self._message)
         if decision:
             self._message.smtp_to.append(email_address)
@@ -463,7 +435,7 @@ class SMTPSession(object):
             raise PolicyDenial(response_sent, 550, 'relay not permitted')
     
     def smtp_data(self):
-        # TODO: Check no arguments
+        self.validate(SMTPCommandArgumentsSchema)
         decision, response_sent = self.is_allowed('accept_data', self._message)
         if decision and not response_sent:
             self._command_parser.switch_to_data_mode()
@@ -471,19 +443,20 @@ class SMTPSession(object):
         elif not decision:
             raise PolicyDenial(response_sent)
     
-    def _get_max_message_size_from_policy(self):
+    def _max_message_size(self):
         max_message_size = None
         if (self._policy is not None) and (self._message.peer is not None):
             max_message_size = self._policy.max_message_size(self._message.peer)
         return max_message_size
     
     def _check_size_restrictions(self, msg_data):
-        max_message_size = self._get_max_message_size_from_policy()
-        if (max_message_size is not None):
-            msg_too_big = (len(msg_data) > int(max_message_size))
-            if msg_too_big:
-                msg = 'message exceeds fixed maximum message size'
-                raise PolicyDenial(False, 552, msg)
+        max_message_size = self._max_message_size()
+        if max_message_size is None:
+            return
+        msg_too_big = (len(msg_data) > int(max_message_size))
+        if msg_too_big:
+            msg = 'message exceeds fixed maximum message size'
+            raise PolicyDenial(False, 552, msg)
     
     def _copy_basic_settings(self, msg):
         peer = self._message.peer
@@ -495,7 +468,7 @@ class SMTPSession(object):
     def smtp_msgdata(self):
         """This method handles not a real smtp command. It is called when the
         whole message was received (multi-line DATA command is completed)."""
-        msg_data = self._command_arguments
+        msg_data = self.arguments()
         self._command_parser.switch_to_command_mode()
         self._check_size_restrictions(msg_data)
         decision, response_sent = self.is_allowed('accept_msgdata', msg_data, self._message)
@@ -511,6 +484,7 @@ class SMTPSession(object):
             raise PolicyDenial(response_sent, 550, 'Message content is not acceptable')
     
     def smtp_rset(self):
+        self.validate(SMTPCommandArgumentsSchema)
         self._message = Message(peer=self._message.peer, 
                                 smtp_helo=self._message.smtp_helo)
         self.reply(250, 'Reset OK')

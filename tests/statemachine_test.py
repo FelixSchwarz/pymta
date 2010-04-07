@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from pymta.compat import set
 from pymta.lib import PythonicTestCase
 from pymta.statemachine import StateMachine, StateMachineDefinitionError, \
     StateMachineError

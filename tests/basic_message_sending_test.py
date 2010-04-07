@@ -191,12 +191,16 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self._check_last_code(535)
     
     def test_auth_plain_with_bad_base64_is_rejected(self):
+        self.session._authenticator = DummyAuthenticator()
+        
         self.send('EHLO', 'foo.example.com')
         self.send('AUTH PLAIN', 'foo', expected_first_digit=5)
         self.assert_equals(3, len(self.command_parser.replies))
         self._check_last_code(501)
     
     def test_auth_plain_with_bad_format_is_rejected(self):
+        self.session._authenticator = DummyAuthenticator()
+        
         self.send('EHLO', 'foo.example.com')
         base64_credentials = u'\x00foo'.encode('base64')
         self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
@@ -232,7 +236,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
                   expected_first_digit=5)
         code, reply_text = self.command_parser.replies[-1]
         self.assert_equals(501, code)
-        self.assert_equals('No SMTP extensions allowed for plain SMTP', reply_text)
+        self.assert_equals('No SMTP extensions allowed for plain SMTP.', reply_text)
     
     def test_can_still_use_esmtp_after_first_mail(self):
         self.send('EHLO', 'foo.example.com')

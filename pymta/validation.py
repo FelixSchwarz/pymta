@@ -22,13 +22,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import base64
 import re
 
 from pycerberus.i18n import _
 from pycerberus.schema import SchemaValidator
-from pycerberus.validators import IntegerValidator, StringValidator
+from pycerberus.validators import EmailAddressValidator, IntegerValidator, \
+    StringValidator
 
-__all__ = ['MailFromSchema', 'SMTPCommandArgumentsSchema']
+__all__ = ['HeloSchema', 'MailFromSchema', 'RcptToSchema', 
+           'SMTPCommandArgumentsSchema']
 
 
 # ------------------------------------------------------------------------------
@@ -45,7 +48,7 @@ class SMTPCommandArgumentsSchema(SchemaValidator):
         self.set_internal_state_freeze(True)
     
     def messages(self):
-        return {'additional_items': _(u'Unknown argument %(additional_items)s')}
+        return {'additional_items': _('Syntactically invalid argument(s) %(additional_items)s')}
     
     def _parameter_names(self):
         return list(self._parameter_order)
@@ -58,14 +61,14 @@ class SMTPCommandArgumentsSchema(SchemaValidator):
         parameter_names.extend(['extra%d' % i for i in xrange(nr_additional_parameters)])
         return dict(zip(parameter_names, arguments))
     
-    def _parse_parameters(self, value):
+    def _parse_parameters(self, value, context):
         arguments = []
         if len(value) > 0:
-            arguments = re.split('\s+', value)
+            arguments = re.split('\s+', value.strip())
         return arguments
     
     def _map_arguments_to_named_fields(self, value, context):
-        return self._assign_names(self._parse_parameters(value), context)
+        return self._assign_names(self._parse_parameters(value, context), context)
     
     def set_parameter_order(self, parameter_names):
         self._parameter_order = parameter_names
@@ -75,7 +78,7 @@ class SMTPCommandArgumentsSchema(SchemaValidator):
         return self.super(fields, context=context)
 
 
-class SMTPEmailValidator(StringValidator):
+class SMTPEmailValidator(EmailAddressValidator):
     
     def messages(self):
         return {'unbalanced_quotes': _(u'Invalid email address format - use balanced angle brackets.')}
@@ -90,7 +93,7 @@ class SMTPEmailValidator(StringValidator):
         return string_value
 
 # ------------------------------------------------------------------------------
-# Specific SMTP commands
+# MAIL FROM
 
 class SizeExtensionValidator(IntegerValidator):
     
@@ -156,4 +159,54 @@ class MailFromSchema(SMTPCommandArgumentsSchema):
             self.error('no_extensions', '', context)
         return self.super()
 
+# ------------------------------------------------------------------------------
+
+class HeloSchema(SMTPCommandArgumentsSchema):
+    helo = StringValidator(strip=True)
+    
+    parameter_order = ('helo',)
+
+
+class RcptToSchema(SMTPCommandArgumentsSchema):
+    email = SMTPEmailValidator()
+    
+    parameter_order = ('email',)
+
+# ------------------------------------------------------------------------------
+# AUTH PLAIN
+
+class AuthPlainSchema(SMTPCommandArgumentsSchema):
+    authzid  = StringValidator(required=False, default=None)
+    username = StringValidator()
+    password = StringValidator()
+    
+    parameter_order = ('authzid', 'username', 'password')
+    
+    def messages(self):
+        return {
+            'invalid_base64': _('Garbled data sent'),
+            'invalid_format': _('Garbled data sent'),
+        }
+    
+    # --------------------------------------------------------------------------
+    # special implementations for SMTP extensions
+    
+    def _decode_base64(self, value, context):
+        try:
+            return base64.decodestring(value)
+        except:
+            self.error('invalid_base64', value, context)
+    
+    def _parse_parameters(self, value, context):
+        match = re.search('=\s(.+)$', value.strip())
+        if match is not None:
+            self.error('additional_items', value, context, additional_items=repr(match.group(1)))
+        decoded_parameters = self._decode_base64(value, context)
+        match = re.search('^([^\x00]*)\x00([^\x00]*)\x00([^\x00]*)$', decoded_parameters)
+        if not match:
+            self.error('invalid_format', value, context)
+        items = list(match.groups())
+        if items[0] == '':
+            items[0] = None
+        return items
 

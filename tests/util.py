@@ -101,7 +101,7 @@ class CommandParserTestCase(PythonicTestCase):
         return (code, reply_text)
     
     def close_connection(self):
-        self.send('quit')
+        self.send('quit', expected_first_digit=2)
         code, reply_text = self.command_parser.replies[-1]
         self.assert_equals(221, code)
         self.assert_equals('localhost closing connection', reply_text)
