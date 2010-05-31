@@ -22,10 +22,13 @@
 # Works only for object subclasses
 
 # TODO:
-# - Research how this all works in py3k
 # - Package it all up nicely so it's super easy to use
 
 # Changelog
+# 1.0.3 (2010-05-31)
+#   - Added compatibility for Python 3
+#   - Moved stand-alone functions into nice classes
+#
 # 1.0.2 (2010-03-27)
 #   - Simplistic heuristic detection if self.super() or 
 #     self.super(*args, **kwargs) was called so we can pass the right parameters
@@ -45,8 +48,6 @@ import re
 import sys
 import traceback
 
-# REFACT: move all the methods into SuperProxy
-
 try:
     reversed
 except NameError:
@@ -55,101 +56,119 @@ except NameError:
         copied_iterable.reverse()
         return copied_iterable
 
-is_python2x = (2 == sys.version_info[0])
-if is_python2x:
-    def points_to_this_function(code, func):
+
+class SmartMethodCall(object):
+    def __init__(self, method, *vargs, **kwargs):
+        self._method = method
+        self._vargs, self._kwargs = self._arguments_for_call(vargs, kwargs)
+    
+    # --- find correct arguments -----------------------------------------------
+    def call_with_correct_parameters(self):
+        return self._method(*self._vargs, **self._kwargs)
+    
+    def _arguments_for_call(self, vargs, kwargs):
+        # always prefer explicit arguments
+        if self._did_specify_arguments_explicitely(vargs, kwargs):
+            return (vargs, kwargs)
+        return self._arguments_for_super_method()
+
+    def _did_specify_arguments_explicitely(self, vargs, kwargs):
+        if vargs or kwargs:
+            return True
+        
+        # yes, this is extremly ugly - however in Python 2.x there is no other
+        # way to differentiate between self.super(*[], **{}) and self.super()
+        caller_source_lines = inspect.getframeinfo(sys._getframe(4))[3]
+        caller_source_code = caller_source_lines[0]
+        match = re.search('self.super\((.*?)\)', caller_source_code)
+        assert match is not None, repr(caller_source_code)
+        if re.search('\S', match.group(1)):
+            return True
+        return False
+
+    def _arguments_for_super_method(self):
+        if not inspect.isroutine(self._method):
+            # special treatment of object's __init__
+            return ([], {})
+        (args, varargs, varkw, defaults) = inspect.getargspec(self._method)
+        if len(args) == 1 and varargs is None: # just self
+            return ([], {})
+        return self._find_arguments_for_called_method()
+
+    def _find_arguments_for_called_method(self):
+        caller_frame = sys._getframe(3+2)
+        arg_names, varg_name, kwarg_name, arg_values = inspect.getargvalues(caller_frame)
+        # don't need self
+        arg_names = arg_names[1:]
+        
+        vargs = []
+        for name in arg_names:
+            vargs.append(arg_values[name])
+        if varg_name:
+            vargs.extend(arg_values[varg_name])
+        
+        kwargs = {}
+        if kwarg_name:
+            kwargs = arg_values[kwarg_name]
+        return vargs, kwargs
+    
+
+class SuperFinder(object):
+
+    # --- find correct super method --------------------------------------------
+    def super_method(self, method_name=None):
+        caller_self = self._find_caller_self()
+        code = sys._getframe(2).f_code
+        if method_name is None:
+            method_name = code.co_name
+        super_class = self._find_class(caller_self, code)
+        return getattr(super(super_class, caller_self), method_name)
+
+    def _find_caller_self(self):
+        arg_names, varg_name, kwarg_name, arg_values = inspect.getargvalues(sys._getframe(3))
+        return arg_values[arg_names[0]]
+    
+    def _points_to_this_function(self, code, func):
+        is_python2x = (2 == sys.version_info[0])
+        if is_python2x:
+            return self._points_to_this_function_py2x(code, func)
+        return self._points_to_this_function_py3k(code, func)
+    
+    def _points_to_this_function_py2x(self, code, func):
         # Objects special methods like __init__ are c-stuff that is only 
         # available to python as <slot_wrapper> which don't have im_func 
-        # members, so I can't get the code object to find the actual implementation.
-        # However this is not neccessary, as I only want to find methods
-        # defined in python (the caller) so I  can just skip all <slot_wrappers>
+        # members, so I can't get the code object to find the actual 
+        # implementation. 
+        # However this is not neccessary, as I only want to find methods defined
+        # in python (the caller) so I  can just skip all <slot_wrappers>
         if hasattr(func, 'im_func'):
             other_code = func.im_func.func_code
             if id(code) == id(other_code):
                 return True
         return False
-else:
-    def points_to_this_function(code, func):
+    
+    def _points_to_this_function_py3k(self, code, func):
         other_code = inspect.getmembers(func)[4][1]
         return id(code) == id(other_code)
 
-def find_class(instance, code):
-    method_name = code.co_name
-    for klass in reversed(inspect.getmro(instance.__class__)):
-        if hasattr(klass, method_name):
-            func = getattr(klass, method_name)
-            if points_to_this_function(code, func):
-                return klass
-
-def find_arguments_for_called_method():
-    caller_frame = sys._getframe(3)
-    arg_names, varg_name, kwarg_name, arg_values = inspect.getargvalues(caller_frame)
-    # don't need self
-    arg_names = arg_names[1:]
-    
-    vargs = []
-    for name in arg_names:
-        vargs.append(arg_values[name])
-    
-    if varg_name:
-        vargs.extend(arg_values[varg_name])
-    
-    kwargs = {}
-    if kwarg_name:
-        kwargs = arg_values[kwarg_name]
-    
-    return vargs, kwargs
-
-def arguments_for_super_method(super_method):
-    if not inspect.isroutine(super_method):
-        # special treatment of object's __init__
-        return ([], {})
-    (args, varargs, varkw, defaults) = inspect.getargspec(super_method)
-    if len(args) == 1 and varargs is None: # just self
-        return ([], {})
-    return find_arguments_for_called_method()
-
-
-self_super_regex = re.compile('self.super\((.*?)\)')
-non_whitespace_regex = re.compile('\S')
-
-def did_specify_arguments_explicitely(vargs, kwargs):
-    if vargs or kwargs:
-        return True
-    
-    caller_source_lines = inspect.getframeinfo(sys._getframe(2))[3]
-    caller_source_code = caller_source_lines[0]
-    match = self_super_regex.search(caller_source_code)
-    assert match is not None, repr(caller_source_code)
-    if non_whitespace_regex.search(match.group(1)):
-        return True
-    return False
-
-
-def find_caller_self():
-    arg_names, varg_name, kwarg_name, arg_values = inspect.getargvalues(sys._getframe(2))
-    return arg_values[arg_names[0]]
+    def _find_class(self, instance, code):
+        method_name = code.co_name
+        for klass in reversed(inspect.getmro(instance.__class__)):
+            if hasattr(klass, method_name):
+                func = getattr(klass, method_name)
+                if self._points_to_this_function(code, func):
+                    return klass
 
 
 class SuperProxy(object):
     "This has as few methods as possible, to serve as an ideal proxy."
     
     def __call__(self, *vargs, **kwargs):
-        code = sys._getframe(1).f_code
-        caller_self = find_caller_self()
-        method = getattr(super(find_class(caller_self, code), caller_self), code.co_name)
-        # always prefer explicit arguments
-        if did_specify_arguments_explicitely(vargs, kwargs):
-            return method(*vargs, **kwargs)
-        else:
-            vargs, kwargs = arguments_for_super_method(method)
-            return method(*vargs, **kwargs)
+        method = SuperFinder().super_method()
+        return SmartMethodCall(method, *vargs, **kwargs).call_with_correct_parameters()
     
     def __getattr__(self, method_name):
-        code = sys._getframe(1).f_code
-        caller_self = find_caller_self()
-        return getattr(super(find_class(caller_self, code), caller_self), method_name)
-    
+        return SuperFinder().super_method(method_name=method_name)
 
 
 # ------------------------------------------------------------------------------
