@@ -55,20 +55,31 @@ except NameError:
         copied_iterable.reverse()
         return copied_iterable
 
+is_python2x = (2 == sys.version_info[0])
+if is_python2x:
+    def points_to_this_function(code, func):
+        # Objects special methods like __init__ are c-stuff that is only 
+        # available to python as <slot_wrapper> which don't have im_func 
+        # members, so I can't get the code object to find the actual implementation.
+        # However this is not neccessary, as I only want to find methods
+        # defined in python (the caller) so I  can just skip all <slot_wrappers>
+        if hasattr(func, 'im_func'):
+            other_code = func.im_func.func_code
+            if id(code) == id(other_code):
+                return True
+        return False
+else:
+    def points_to_this_function(code, func):
+        other_code = inspect.getmembers(func)[4][1]
+        return id(code) == id(other_code)
+
 def find_class(instance, code):
     method_name = code.co_name
     for klass in reversed(inspect.getmro(instance.__class__)):
         if hasattr(klass, method_name):
             func = getattr(klass, method_name)
-            # Objects special methods like __init__ are c-stuff that is only 
-            # available to python as <slot_wrapper> which don't have im_func 
-            # members, so I can't get the code object to find the actual implementation.
-            # However this is not neccessary, as I only want to find methods
-            # defined in python (the caller) so I  can just skip all <slot_wrappers>
-            if hasattr(func, 'im_func'):
-                other_code = func.im_func.func_code
-                if id(code) == id(other_code):
-                    return klass
+            if points_to_this_function(code, func):
+                return klass
 
 def find_arguments_for_called_method():
     caller_frame = sys._getframe(3)
@@ -90,7 +101,7 @@ def find_arguments_for_called_method():
     return vargs, kwargs
 
 def arguments_for_super_method(super_method):
-    if not hasattr(super_method, 'im_func'):
+    if not inspect.isroutine(super_method):
         # special treatment of object's __init__
         return ([], {})
     (args, varargs, varkw, defaults) = inspect.getargspec(super_method)
@@ -302,3 +313,7 @@ class SuperTests(unittest.TestCase):
 # TODO: consider adding support for nested tuple unpacking? 
 # Not sure if this is actually used, but I found a note about this in the docs 
 # of the inspect module
+
+if __name__ == '__main__': 
+    unittest.main()
+
