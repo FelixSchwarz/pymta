@@ -4,7 +4,7 @@
 # License: Public Domain
 # Authors: Martin Häcker, Felix Schwarz
 
-# Version 1.0.2
+# Version 1.0.3
 
 # This is how it works:
 # In the superclass of the class where you want to use this
