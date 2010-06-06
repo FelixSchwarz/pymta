@@ -16,6 +16,10 @@ you want to...
 Changelog
 ******************************
 
+0.5.1
+==================
+- Fix egg file generation: Include all necessary packages in eggs
+
 0.5.0 (07.04.2010)
 ==================
 - Dropped dependency to repoze.workflow because the module added a lot of 
