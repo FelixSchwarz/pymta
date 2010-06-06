@@ -4,7 +4,7 @@
 # License: Public Domain
 # Authors: Martin Häcker, Felix Schwarz
 
-# Version 1.0.3
+# Version 1.0.4
 
 # This is how it works:
 # In the superclass of the class where you want to use this
@@ -25,6 +25,10 @@
 # - Package it all up nicely so it's super easy to use
 
 # Changelog
+# 1.0.4 (2010-06-06)
+#   - Add heuristic to move arguments to kwargs if lower method has more named
+#     arguments than the upper method
+#
 # 1.0.3 (2010-05-31)
 #   - Added compatibility for Python 3
 #   - Moved stand-alone functions into nice classes
@@ -97,19 +101,24 @@ class SmartMethodCall(object):
 
     def _find_arguments_for_called_method(self):
         caller_frame = sys._getframe(3+2)
-        arg_names, varg_name, kwarg_name, arg_values = inspect.getargvalues(caller_frame)
-        # don't need self
-        arg_names = arg_names[1:]
+        caller_arg_names, caller_varg_name, caller_kwarg_name, caller_arg_values = inspect.getargvalues(caller_frame)
+        (callee_arg_names, callee_varargs, callee_kwarg_name, callee_defaults) = inspect.getargspec(self._method)
         
         vargs = []
-        for name in arg_names:
-            vargs.append(arg_values[name])
-        if varg_name:
-            vargs.extend(arg_values[varg_name])
-        
         kwargs = {}
-        if kwarg_name:
-            kwargs = arg_values[kwarg_name]
+        
+        if len(caller_arg_names) > len(callee_arg_names):
+            for name in caller_arg_names[len(callee_arg_names):]:
+                kwargs[name] = caller_arg_values[name]
+        # [1:..] because we don't need self
+        for name in caller_arg_names[1:len(callee_arg_names)]:
+            vargs.append(caller_arg_values[name])
+        
+        if caller_varg_name:
+            vargs.extend(caller_arg_values[caller_varg_name])
+        if caller_kwarg_name:
+            kwargs.update(caller_arg_values[caller_kwarg_name])
+        
         return vargs, kwargs
     
 
@@ -326,7 +335,17 @@ class SuperTests(unittest.TestCase):
                 return self.super(*args, **kwargs)
         
         Lower().foo().verify()
-
+    
+    def test_add_arguments_to_kwargs_if_upper_has_less_named_arguments_than_lower(self):
+        class Upper(Super):
+            def foo(self, some_parameter, **kwargs):
+                assert 'another_parameter' in kwargs
+                assert kwargs['another_parameter'] == 'fnord'
+                return self.super.method()
+        class Lower(Upper):
+            def foo(self, some_parameter, another_parameter='fnord', **kwargs):
+                return self.super()
+        Lower().foo(None).verify()
 
 
 # TODO: consider adding support for nested tuple unpacking? 
