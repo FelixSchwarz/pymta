@@ -16,7 +16,7 @@ you want to...
 Changelog
 ******************************
 
-0.5.1
+0.5.1 (08.06.2010)
 ==================
 - Fix egg file generation: Include all necessary packages in eggs
 
