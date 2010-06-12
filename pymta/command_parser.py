@@ -162,6 +162,13 @@ class SMTPCommandParser(object):
         data_without_transparency_dots = regex.sub('.', input_data)
         return re.sub('\r\n', '\n', data_without_transparency_dots)
     
+    def is_in_command_mode(self):
+        assert self.state.state() in ('commands', 'data')
+        return self.state.state() == 'commands'
+    
+    def is_in_data_mode(self):
+        return not self.is_in_command_mode()
+    
     def process_new_data(self, data):
         self.data += data
         if self.is_input_too_big():
@@ -175,7 +182,7 @@ class SMTPCommandParser(object):
         # the end of the input string
         input_data_without_terminator = self.data[:-len(self.terminator)]
         # REFACT: add property for this
-        if self.state.state() == 'commands':
+        if self.is_in_command_mode():
             command, parameter = self._parser.parse(input_data_without_terminator)
             self.session.handle_input(command, parameter)
             self.data = ''

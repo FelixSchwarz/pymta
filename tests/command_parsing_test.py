@@ -89,14 +89,14 @@ class CommandParsingTest(PythonicTestCase):
     def test_can_switch_to_data_mode(self):
         self._send_helo_mail_from_and_rcpt_to()
         self.send('DATA\r\n')
-        self.assert_equals('data', self.parser.state.state())
+        self.assert_true(self.parser.is_in_data_mode())
     
     def test_switch_to_command_mode_when_mail_is_sent(self):
         self._send_helo_mail_from_and_rcpt_to()
         self.send('DATA\r\n')
-        self.assert_equals('data', self.parser.state.state())
+        self.assert_true(self.parser.is_in_data_mode())
         self.send(['Subject: Foo\r\n\r\n', 'test', '\r\n.\r\n'])
-        self.assert_equals('commands', self.parser.state.state())
+        self.assert_true(self.parser.is_in_command_mode())
         self.assert_equals(1, self.deliverer.received_messages.qsize())
     
     def received_message(self):
@@ -117,7 +117,7 @@ class CommandParsingTest(PythonicTestCase):
         self._send_helo_mail_from_and_rcpt_to()
         self.send(['DATA\r\n', '\r\n', '.', '\r\n'])
         self.assert_equals('', self.received_message().msg_data)
-        self.assert_equals('commands', self.parser.state.state())
+        self.assert_true(self.parser.is_in_command_mode())
     
     def test_recognizes_complete_command_mode_even_if_terminator_is_sent_in_multiple_packages(self):
         self.send(['HELO foo', '\r', '\n'])
@@ -128,7 +128,7 @@ class CommandParsingTest(PythonicTestCase):
         self._send_helo_mail_from_and_rcpt_to()
         self.send(['DATA\r\n', '..foo\r\n', '..bar..baz\r\n', '\r\n.\r\n'])
         self.assert_equals('.foo\n.bar..baz\n', self.received_message().msg_data)
-        self.assert_equals('commands', self.parser.state.state())
+        self.assert_true(self.parser.is_in_command_mode())
     
     def test_big_messages_are_rejected(self):
         """Check that messages which exceed the configured maximum message size
