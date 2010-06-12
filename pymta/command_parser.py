@@ -155,14 +155,6 @@ class SMTPCommandParser(object):
         the actual message data."""
         self.state.execute('DATA')
     
-    # REFACT: Get rid of this property
-    def get_terminator(self):
-        return self._terminator
-    
-    def set_terminator(self, terminator):
-        self._terminator = terminator
-    terminator = property(get_terminator, set_terminator)
-    
     def _remove_leading_dots_for_smtp_transparency_support(self, input_data):
         """Uses the input data to recover the original payload (includes 
         transparency support as specified in RFC 821, Section 4.5.2)."""
