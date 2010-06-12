@@ -2,7 +2,7 @@
 "Release information about pymta."
 
 name = 'pymta'
-version = '0.5.2'
+version = '0.6dev'
 description = 'library to build a custom SMTP server'
 long_description = '''
 pymta is a library to build a custom SMTP server in Python. This is useful if 
