@@ -22,7 +22,8 @@ if __name__ == '__main__':
           
           install_requires=['pycerberus >= 0.3.1'],
           
-          zip_safe=True,
+          # simple_super is not zip_safe
+          zip_safe=False,
           packages=setuptools.find_packages(),
           classifiers = [
               'Development Status :: 4 - Beta',

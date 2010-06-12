@@ -4,7 +4,7 @@
 # License: Public Domain
 # Authors: Martin Häcker, Felix Schwarz
 
-# Version 1.0.4
+# Version 1.0.5
 
 # This is how it works:
 # In the superclass of the class where you want to use this
@@ -25,6 +25,9 @@
 # - Package it all up nicely so it's super easy to use
 
 # Changelog
+# 1.0.5 (2010-06-12)
+#   - Avoid exception if no source code could be found
+#
 # 1.0.4 (2010-06-06)
 #   - Add heuristic to move arguments to kwargs if lower method has more named
 #     arguments than the upper method
@@ -51,6 +54,7 @@ import inspect
 import re
 import sys
 import traceback
+import warnings
 
 try:
     reversed
@@ -82,7 +86,11 @@ class SmartMethodCall(object):
         
         # yes, this is extremly ugly - however in Python 2.x there is no other
         # way to differentiate between self.super(*[], **{}) and self.super()
-        caller_source_lines = inspect.getframeinfo(sys._getframe(4))[3]
+        frame_info = inspect.getframeinfo(sys._getframe(4))
+        caller_source_lines = frame_info[3]
+        if caller_source_lines is None:
+            warnings.warn('No source found for ' + frame_info[0])
+            return False
         caller_source_code = caller_source_lines[0]
         match = re.search('self.super\((.*?)\)', caller_source_code)
         assert match is not None, repr(caller_source_code)
