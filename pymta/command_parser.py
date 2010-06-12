@@ -111,7 +111,7 @@ class SMTPCommandParser(object):
     def multiline_push(self, code, lines):
         """Send a multi-message to the peer (using the correct SMTP line 
         terminators (usually only called from the SMTPSession)."""
-        for i, line in enumerate(lines[:-1]):
+        for line in lines[:-1]:
             answer = '%s-%s' % (str(code), str(line))
             self.push(answer)
         self.push(code, lines[-1])
