@@ -67,12 +67,12 @@ class SMTPCommandParser(object):
     possible at all in the previous architecture."""
     
     LINE_TERMINATOR = '\r\n'
-
+    
     def __init__(self, channel, remote_ip_string, remote_port, deliverer, 
                  policy=None, authenticator=None):
         self._channel = channel
         
-        self.data = None
+        self.data = ''
         self.terminator = self.LINE_TERMINATOR
         self._build_state_machine()
         
@@ -81,18 +81,19 @@ class SMTPCommandParser(object):
         allowed_commands = self.session.get_all_allowed_internal_commands()
         self._parser = ParserImplementation(allowed_commands)
         self.session.new_connection(remote_ip_string, remote_port)
+        self._maximum_message_size = None
     
     def _build_state_machine(self):
         def _command_completed(from_state, to_state, smtp_command, instance):
-            self.data = None
+            self.data = ''
         
         def _start_receiving_message(from_state, to_state, smtp_command):
             self.terminator = '%s.%s' % (self.LINE_TERMINATOR, self.LINE_TERMINATOR)
-            self.data = []
+            self.data = ''
         
         def _finished_receiving_message(from_state, to_state, smtp_command):
             self.terminator = self.LINE_TERMINATOR
-            self.data = None
+            self.data = ''
         
         self.state = StateMachine(initial_state='commands')
         self.state.add('commands', 'commands', 'COMMAND', _command_completed)
@@ -127,26 +128,22 @@ class SMTPCommandParser(object):
             msg += self.LINE_TERMINATOR
         self._channel.write(msg)
     
-    def collect_incoming_data(self, data):
-        if self.state.state() == 'commands':
-            self.data = data
-        elif data != '.':
-            # In DATA mode '.' on a line by itself signals the 'end of message'.
-            # So the dot is only needed in protocol itself but we don't add it 
-            # to our payload.
-            self.data.append(data)
-    
     def input_exceeds_limits(self):
         """Called from the underlying transport layer if the client input 
         exceeded the configured maximum message size."""
         self.session.input_exceeds_limits()
         self.switch_to_command_mode()
     
+    def is_input_too_big(self):
+        if self._maximum_message_size is None:
+            return False
+        return len(self.data) > self._maximum_message_size
+    
     def set_maximum_message_size(self, max_size):
         """Set the maximum allowed size (in bytes) of a command/message in the
         underlying transport layer so that big messages are not stored in memory
         before they are rejected."""
-        self._channel.set_max_input_size(max_size)
+        self._maximum_message_size = max_size
     
     def switch_to_command_mode(self):
         """Called from the SMTPSession when a message was received and the 
@@ -158,17 +155,7 @@ class SMTPCommandParser(object):
         the actual message data."""
         self.state.execute('DATA')
     
-    def _assemble_msgdata(self, input_data):
-        """Uses the input data to recover the original payload (includes 
-        transparency support as specified in RFC 821, Section 4.5.2)."""
-        lines = []
-        for part in input_data:
-            for line in part.split(self.LINE_TERMINATOR):
-                if line.startswith('.'):
-                    line = line[1:]
-                lines.append(line)
-        return '\n'.join(lines)
-    
+    # REFACT: Get rid of this property
     def get_terminator(self):
         return self._terminator
     
@@ -176,15 +163,33 @@ class SMTPCommandParser(object):
         self._terminator = terminator
     terminator = property(get_terminator, set_terminator)
     
-    def found_terminator(self):
-        input_data = self.data
+    def _remove_leading_dots_for_smtp_transparency_support(self, input_data):
+        """Uses the input data to recover the original payload (includes 
+        transparency support as specified in RFC 821, Section 4.5.2)."""
+        regex = re.compile('^\.\.', re.MULTILINE)
+        data_without_transparency_dots = regex.sub('.', input_data)
+        return re.sub('\r\n', '\n', data_without_transparency_dots)
+    
+    def process_new_data(self, data):
+        self.data += data
+        if self.is_input_too_big():
+            self.session.input_exceeds_limits()
+            self.switch_to_command_mode()
+            return
+        if self.terminator not in self.data:
+            return
+        
+        # TODO: actually we should not assume that the terminator is at
+        # the end of the input string
+        input_data_without_terminator = self.data[:-len(self.terminator)]
+        # REFACT: add property for this
         if self.state.state() == 'commands':
-            command, parameter = self._parser.parse(input_data)
+            command, parameter = self._parser.parse(input_data_without_terminator)
             self.session.handle_input(command, parameter)
+            self.data = ''
         else:
-            assert isinstance(input_data, list)
-            msgdata = self._assemble_msgdata(input_data)
-            self.session.handle_input('MSGDATA', msgdata)
+            msg_data = self._remove_leading_dots_for_smtp_transparency_support(input_data_without_terminator)
+            self.session.handle_input('MSGDATA', msg_data)
     
     def close_when_done(self):
         self._channel.close()
@@ -210,8 +215,6 @@ class WorkerProcess(object):
         
         self._connection = None
         self._chatter = None
-        self._max_size = None
-        self._input_too_big = False
         self._ignore_write_operations = False
     
     def _get_instance_from_class(self, class_reference):
@@ -270,68 +273,36 @@ class WorkerProcess(object):
                 token = None
                 if connection_info is None:
                     break
-                self.chat_with_peer(connection_info)
+                self.handle_connection(connection_info)
         finally:
             if have_token():
                 # If we possess the token, put it back in the queue so other can
                 # continue doing stuff.
                 self._queue.put(True)
     
-    def set_max_input_size(self, max_size):
-        """Set the maximum size of client input (in bytes) before the input is
-        discarded. When the client finished transmitting a message which was
-        too big, the 'input_exceeds_limits' method is called on the chatter 
-        which is responsible for notifying the peer.
-        Setting a maximum size of None disables any size-checking."""
-        self._max_size = max_size
-    
     def _setup_new_connection(self, connection_info):
         self._connection, (remote_ip_string, remote_port) = connection_info
         self._ignore_write_operations = False
-        self._input_too_big = False
         self._chatter = SMTPCommandParser(self, remote_ip_string, remote_port, 
                             self._deliverer, self._policy, self._authenticator)
     
-    def chat_with_peer(self, connection_info):
+    def handle_connection(self, connection_info):
         self._setup_new_connection(connection_info)
-        while self.is_connected():
-            try:
-                data = self.readline()
-                if not self._input_too_big:
-                    self._chatter.collect_incoming_data(data)
-                    self._chatter.found_terminator()
-                else:
-                    self._chatter.input_exceeds_limits()
-                    self._input_too_big = False
-            except ClientDisconnectedError:
-                if self.is_connected():
-                    self.close()
+        try:
+            while self.is_connected():
+                try:
+                    data = self._connection.recv(4096)
+                except socket.error:
+                    raise ClientDisconnectedError()
+                if data == '':
+                    raise ClientDisconnectedError()
+                self._chatter.process_new_data(data)
+        except ClientDisconnectedError:
+            if self.is_connected():
+                self.close()
     
     def is_connected(self):
         return (self._connection is not None)
-    
-    def readline(self):
-        """Read as much data as possible until a line terminator was 
-        received."""
-        assert self.is_connected()
-        data = ''
-        self._input_too_big = False
-        while True:
-            try:
-                more_data = self._connection.recv(4096)
-            except socket.error:
-                raise ClientDisconnectedError()
-            if more_data == '':
-                raise ClientDisconnectedError()
-            elif more_data.endswith(self._chatter.terminator):
-                data += more_data[:-len(self._chatter.terminator)]
-                break
-            elif not self._input_too_big:
-                data += more_data
-            if (self._max_size is not None) and (len(data) > self._max_size):
-                self._input_too_big = True
-                data = ''
-        return data
     
     def close(self):
         """Closes the connection to the client."""
@@ -346,7 +317,7 @@ class WorkerProcess(object):
         # won't send that much data anyway. Afterwards the read will detect the
         # broken connection and we quit.
         if self._ignore_write_operations:
-           return 
+            return
         assert self.is_connected()
         try:
             self._connection.send(data)

@@ -62,6 +62,17 @@ class MockCommandParser(object):
         pass
 
 
+class MockChannel(object):
+    def __init__(self):
+        self.replies = []
+    
+    def write(self, data):
+        self.replies.append(data)
+    
+    def close(self):
+        pass
+
+
 class DummyAuthenticator(IAuthenticator):
     def authenticate(self, username, password, peer):
         return username == password

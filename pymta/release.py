@@ -2,7 +2,7 @@
 "Release information about pymta."
 
 name = 'pymta'
-version = '0.6dev'
+version = '0.5.2'
 description = 'library to build a custom SMTP server'
 long_description = '''
 pymta is a library to build a custom SMTP server in Python. This is useful if 
@@ -15,6 +15,11 @@ you want to...
 
 Changelog
 ******************************
+
+0.5.2 (12.06.2010)
+==================
+- Fix bug - detect of command/message also when the terminator is sent in 
+  multiple packages (fixes manual message submission with telnet)
 
 0.5.1 (08.06.2010)
 ==================
