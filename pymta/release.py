@@ -61,9 +61,10 @@ Changelog
    server
 '''
 author = 'Felix Schwarz'
-email = 'felix.schwarz@oss.schwarz.eu'
+author_email = 'felix.schwarz@oss.schwarz.eu'
 url = 'http://www.schwarz.eu/opensource/projects/pymta'
 download_url = 'http://www.schwarz.eu/opensource/projects/%(name)s/download/%(version)s/%(name)s-%(version)s.tar.gz' % dict(name=name, version=version)
-copyright = u'2008-2010 Felix Schwarz'
+# prefix it with '_' so the symbol is not passed to setuptools.setup()
+_copyright = u'2008-2010 Felix Schwarz'
 license='MIT'
 

@@ -5,21 +5,13 @@ import os
 
 import setuptools
 
-if __name__ == '__main__':
-    execfile(os.path.join('pymta', 'release.py'))
+from pymta.lib.distribution_helpers import information_from_file
 
+if __name__ == '__main__':
+    release_filename = os.path.join('pymta', 'release.py')
+    externally_defined_parameters= information_from_file(release_filename)
+    
     setuptools.setup(
-          name=name,
-          version=version,
-            
-          description=description,
-          long_description=long_description,
-          author=author,
-          author_email=email,
-          url=url,
-          download_url=download_url,
-          license=license,
-          
           install_requires=['pycerberus >= 0.3.1'],
           
           # simple_super is not zip_safe
@@ -35,6 +27,7 @@ if __name__ == '__main__':
               'Topic :: Software Development :: Libraries :: Python Modules',
             ],
           test_suite = 'nose.collector',
+          **externally_defined_parameters
     )
 
 

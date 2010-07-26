@@ -30,7 +30,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = release_info['name']
-copyright = release_info['copyright']
+copyright = release_info['_copyright']
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
