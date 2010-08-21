@@ -22,8 +22,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from distutils.command.build import build
+import os
 
-__all__ = ['commands_for_babel_support']
+from setuptools.command.install_lib import install_lib
+
+
+__all__ = ['commands_for_babel_support', 'i18n_aware_commands']
 
 def is_babel_available():
     try:
@@ -45,11 +50,53 @@ def commands_for_babel_support():
     }
     return extra_commands
 
+def module_for_filename(filename):
+    if filename.endswith('.py'):
+        filename = filename[:-len('.py')]
+    module_name = filename.replace(os.sep, '.')
+    package_name = module_name.split('.')[-1]
+    top_level_module = __import__(module_name)
+    module = getattr(top_level_module, package_name)
+    return module
+
+def information_from_module(module):
+    data = dict()
+    for symbol_name in dir(module):
+        value = getattr(module, symbol_name)
+        if not isinstance(value, basestring):
+            continue
+        data[symbol_name] = value
+    return data
+
 def information_from_file(filename):
     data = dict()
-    execfile(filename, data)
+    if os.path.exists(filename):
+        execfile(filename, data)
+    else:
+        data = information_from_module(module_for_filename(filename))
     is_exportable_symbol = lambda key: not key.startswith('_')
-    externally_defined_parameters = dict([(key, value) for key, value in data.items() if is_exportable_symbol(key)])
+    
+    externally_defined_parameters = dict()
+    for key, value in data.items():
+        if is_exportable_symbol(key):
+            externally_defined_parameters[key] = value
     return externally_defined_parameters
+
+def i18n_aware_commands():
+    if not is_babel_available():
+        # setup(..., cmdclass=None) will use the built-in commands in this case
+        return None
+    
+    class i18n_build(build):
+        sub_commands = [('compile_catalog', None)] + build.sub_commands
+    
+    # before doing an 'install' (which can also be a 'bdist_egg'), compile the catalog
+    class i18n_install_lib(install_lib):
+        def run(self):
+            self.run_command('compile_catalog')
+            install_lib.run(self)
+    command_dict = dict(build=i18n_build, install_lib=i18n_install_lib)
+    command_dict.update(commands_for_babel_support())
+    return command_dict
 
 
