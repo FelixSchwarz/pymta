@@ -84,8 +84,8 @@ def information_from_file(filename):
 
 def i18n_aware_commands():
     if not is_babel_available():
-        # setup(..., cmdclass=None) will use the built-in commands in this case
-        return None
+        # setup(..., cmdclass={}) will use just the built-in commands
+        return dict()
     
     class i18n_build(build):
         sub_commands = [('compile_catalog', None)] + build.sub_commands
