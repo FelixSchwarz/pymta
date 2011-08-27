@@ -16,6 +16,10 @@ you want to...
 Changelog
 ******************************
 
+dev
+==================
+- require pycerberus >= 0.5 to simplify some validation code
+
 0.5.2 (12.06.2010)
 ==================
 - Fix bug - detect of command/message also when the terminator is sent in 

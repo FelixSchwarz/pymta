@@ -40,7 +40,7 @@ class CommandWithoutParametersTest(PythonicTestCase):
     
     def test_bails_out_if_additional_parameters_are_passed(self):
         e = self.assert_raises(InvalidDataError, lambda: self.schema().process('fnord'))
-        self.assert_equals('Syntactically invalid argument(s) \'fnord\'', e.msg())
+        self.assert_equals("Syntactically invalid argument(s) 'fnord'", e.msg())
 
 
 class CommandWithSingleParameterTest(PythonicTestCase):

@@ -12,7 +12,7 @@ if __name__ == '__main__':
     externally_defined_parameters= information_from_file(release_filename)
     
     setuptools.setup(
-          install_requires=['pycerberus >= 0.3.1'],
+          install_requires=['pycerberus >= 0.5dev'],
           
           # simple_super is not zip_safe
           zip_safe=False,
