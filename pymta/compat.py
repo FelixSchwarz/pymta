@@ -30,15 +30,6 @@ import base64
 __all__ = ['set']
 
 
-def print_(template, *args, **kwargs):
-    template = str(template)
-    if args:
-        template = template % args
-    elif kwargs:
-        template = template % kwargs
-    sys.stdout.writelines(template)
-
-
 if sys.version_info < (3, 0):  
     basestring = basestring
     binary = bytes = str

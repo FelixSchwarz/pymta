@@ -37,7 +37,7 @@ import time
 from pymta.api import IMessageDeliverer, IMTAPolicy
 from pymta.lib import PythonicTestCase
 from pymta.mta import PythonMTA
-from pymta.compat import Queue, print_
+from pymta.compat import Queue
 
 
 __all__ = ['BlackholeDeliverer', 'DebuggingMTA', 'MTAThread', 'SMTPTestCase']
@@ -94,7 +94,7 @@ class MTAThread(threading.Thread):
         self.server.shutdown_server()
         threading.Thread.join(self, timeout=timeout_seconds)
         if self.isAlive():
-            print_("WARNING: Thread still alive. Timeout while waiting for termination!")
+            print("WARNING: Thread still alive. Timeout while waiting for termination!")
 
 
 class SMTPTestCase(PythonicTestCase):
