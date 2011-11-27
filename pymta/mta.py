@@ -22,8 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import socket
 from threading import Event
+import socket
 import time
 
 from pymta.command_parser import WorkerProcess
@@ -109,7 +109,7 @@ class PythonMTA(object):
             except ImportError:
                 use_multiprocessing = False
         if not use_multiprocessing:
-            from Queue import Queue
+            from pymta.compat import Queue
         
         self._shutdown_server.clear()
         self._queue = Queue()

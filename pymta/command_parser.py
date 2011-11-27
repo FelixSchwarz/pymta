@@ -22,13 +22,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from Queue import Empty
 import re
 import socket
 
 from pymta.exceptions import SMTPViolationError
 from pymta.session import SMTPSession
 from pymta.statemachine import StateMachine
+from pymta.compat import Empty, basestring
 
 __all__ = ['SMTPCommandParser']
 
@@ -112,7 +112,7 @@ class SMTPCommandParser(object):
         """Send a multi-message to the peer (using the correct SMTP line 
         terminators (usually only called from the SMTPSession)."""
         for line in lines[:-1]:
-            answer = '%s-%s' % (str(code), str(line))
+            answer = '%s-%s' % (code, line)
             self.push(answer)
         self.push(code, lines[-1])
     
@@ -120,9 +120,9 @@ class SMTPCommandParser(object):
         """Send a message to the peer (using the correct SMTP line terminators
         (usually only called from the SMTPSession)."""
         if msg is None:
-            msg = code
+            msg = str(code)
         else:
-            msg = '%s %s' % (str(code), msg)
+            msg = '%s %s' % (code, msg)
         
         if not msg.endswith(self.LINE_TERMINATOR):
             msg += self.LINE_TERMINATOR
@@ -293,9 +293,9 @@ class WorkerProcess(object):
                     data = self._connection.recv(4096)
                 except socket.error:
                     raise ClientDisconnectedError()
-                if data == '':
+                if not data:
                     raise ClientDisconnectedError()
-                self._chatter.process_new_data(data)
+                self._chatter.process_new_data(data.decode('ascii'))
         except ClientDisconnectedError:
             if self.is_connected():
                 self.close()
@@ -319,8 +319,8 @@ class WorkerProcess(object):
             return
         assert self.is_connected()
         try:
-            self._connection.send(data)
-        except socket.error, e:
+            self._connection.send(data.encode('ascii'))
+        except socket.error:
             self.close()
             self._ignore_write_operations = True
 

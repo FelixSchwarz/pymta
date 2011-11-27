@@ -22,16 +22,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import base64
 import re
 
 from pycerberus.i18n import _
 from pycerberus.schemas import PositionalArgumentsParsingSchema
-from pycerberus.validators import EmailAddressValidator, IntegerValidator, \
-    StringValidator
+from pycerberus.validators import EmailAddressValidator, IntegerValidator, StringValidator
 
-__all__ = ['HeloSchema', 'MailFromSchema', 'RcptToSchema', 
-           'SMTPCommandArgumentsSchema']
+from pymta.compat import dict_keys, dict_values, b, b64decode
+
+__all__ = ['HeloSchema', 'MailFromSchema', 'RcptToSchema', 'SMTPCommandArgumentsSchema']
 
 
 # ------------------------------------------------------------------------------
@@ -49,7 +48,7 @@ class SMTPCommandArgumentsSchema(PositionalArgumentsParsingSchema):
 class SMTPEmailValidator(EmailAddressValidator):
     
     def messages(self):
-        return {'unbalanced_quotes': _(u'Invalid email address format - use balanced angle brackets.')}
+        return {'unbalanced_quotes': _('Invalid email address format - use balanced angle brackets.')}
     
     def convert(self, value, context):
         string_value = self.super()
@@ -113,14 +112,14 @@ class MailFromSchema(SMTPCommandArgumentsSchema):
     def aggregate_values(self, parameter_names, arguments, context):
         if len(arguments) <= 1:
             return self.super()
-        key_value_pairs = map(lambda option: re.split('=', option, 1), arguments[1:])
+        key_value_pairs = [re.split('=', option, 1) for option in arguments[1:]]
 
         self._validate_extension_arguments(key_value_pairs, ' '.join(arguments[1:]), context)
-        lower_case_key_value_pairs = map(lambda item: (item[0].lower(), item[1]), key_value_pairs)
+        lower_case_key_value_pairs = [(item[0].lower(), item[1]) for item in key_value_pairs]
         options = dict(lower_case_key_value_pairs)
         
-        parameter_names = parameter_names + options.keys()
-        arguments = [arguments[0]] + options.values()
+        parameter_names = parameter_names + dict_keys(options)
+        arguments = [arguments[0]] + dict_values(options)
         return parameter_names, arguments
     
     def _process_fields(self, fields, context):
@@ -162,12 +161,12 @@ class AuthPlainSchema(SMTPCommandArgumentsSchema):
     
     def _decode_base64(self, value, context):
         try:
-            return base64.decodestring(value)
+            return b64decode(value)
         except:
             self.raise_error('invalid_base64', value, context)
     
     def split_parameters(self, value, context):
-        match = re.search('=\s(.+)$', value.strip())
+        match = re.search(('=\s(.+)$'), value.strip())
         if match is not None:
             self.raise_error('additional_item', value, context, additional_item=repr(match.group(1)))
         decoded_parameters = self._decode_base64(value, context)

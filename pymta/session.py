@@ -22,9 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import sys
+
 from pycerberus import InvalidDataError
 
-from pymta.compat import set
+from pymta.compat import set, dict_iteritems, dict_itervalues, basestring
 from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
 from pymta.statemachine import StateMachine, StateMachineError
@@ -73,8 +75,8 @@ class SMTPSession(object):
     
     def _get_all_commands(self, including_quit=False):
         commands = set()
-        for actions in self.state._transitions.values():
-            for command_name, transition in actions.items():
+        for actions in dict_itervalues(self.state._transitions):
+            for command_name, transition in dict_iteritems(actions):
                 target_state = transition[0]
                 if target_state in ['new']:
                     continue
@@ -263,15 +265,18 @@ class SMTPSession(object):
                     if len(allowed_transitions) > 0:
                         msg += ', expected on of %s' % allowed_transitions
                         self.reply(503, msg)
-            except InvalidDataError, e:
+            except InvalidDataError:
+                e = sys.exc_info()[1]
                 self.reply(501, e.msg())
-            except InvalidParametersError, e:
+            except InvalidParametersError:
                 # TODO: Get rid of InvalidParametersError, shouldn't be 
                 # necessary anymore
+                e = sys.exc_info()[1]
                 if not e.response_sent:
                     msg = 'Syntactically invalid %s argument(s)' % smtp_command
                     self.reply(501, msg)
-            except PolicyDenial, e:
+            except PolicyDenial:
+                e = sys.exc_info()[1]
                 if not e.response_sent:
                     self.reply(e.code, e.reply_text)
         finally:

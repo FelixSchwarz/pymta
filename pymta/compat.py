@@ -24,12 +24,55 @@
 """This module provides a unified view on certain symbols that are not present 
 for all versions of Python."""
 
+import sys
+import base64
 
 __all__ = ['set']
 
 
-try:
-    set = set
-except NameError:
-    from sets import Set as set
+def print_(template, *args, **kwargs):
+    template = str(template)
+    if args:
+        template = template % args
+    elif kwargs:
+        template = template % kwargs
+    sys.stdout.writelines(template)
 
+
+if sys.version_info < (3, 0):  
+    basestring = basestring
+    binary = bytes = str
+    unicode = unicode
+    range = xrange
+    b = lambda x, encoding='iso-8859-1': x.encode(encoding) if isinstance(x, unicode) else str(x)
+    b64encode = lambda x: base64.b64encode(x)
+    b64decode = lambda x: base64.b64decode(x)
+    func_code = lambda func: func.im_func.func_code
+    dict_items = lambda dct: dct.items()
+    dict_keys = lambda dct: dct.keys()
+    dict_values = lambda dct: dct.values()
+    dict_iteritems = lambda dct: dct.iteritems()
+    dict_iterkeys = lambda dct: dct.iterkeys()
+    dict_itervalues = lambda dct: dct.itervalues()
+    from Queue import Queue, Full, Empty
+else:
+    basestring = str
+    binary = bytes = b = bytes
+    unicode = str
+    range = range
+    b = lambda x, encoding='iso-8859-1': x.encode(encoding) if isinstance(x, unicode) else bytes(x)
+    b64encode = lambda x: base64.b64encode(b(x)).decode('ascii')
+    b64decode = lambda x: base64.b64decode(b(x)).decode('ascii')
+    func_code = lambda func: func.__func__.__code__
+    dict_items = lambda dct: list(dct.items())
+    dict_keys = lambda dct: list(dct.keys())
+    dict_values = lambda dct: list(dct.values())
+    dict_iteritems = lambda dct: dct.items()
+    dict_iterkeys = lambda dct: dct.keys()
+    dict_itervalues = lambda dct: dct.values()
+    from queue import Queue, Full, Empty
+
+if sys.version_info < (2, 4):
+    from sets import Set as set
+else:
+    set = set

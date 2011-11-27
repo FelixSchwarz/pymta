@@ -23,7 +23,7 @@
 # THE SOFTWARE.
 
 from pymta.api import IMTAPolicy
-from pymta.compat import set
+from pymta.compat import set, b, b64encode
 
 from tests.util import CommandParserTestCase, DummyAuthenticator
 
@@ -146,7 +146,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
     
     def test_auth_plain_without_authenticator_is_rejected(self):
         self.send('EHLO', 'foo.example.com')
-        base64_credentials = u'\x00foo\x00foo'.encode('base64')
+        base64_credentials = b64encode('\x00foo\x00foo')
         self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
         self.assert_equals(3, len(self.command_parser.replies))
         self._check_last_code(535)
@@ -162,7 +162,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.session._authenticator = DummyAuthenticator()
         
         self.send('EHLO', 'foo.example.com')
-        self.send('AUTH PLAIN', u'\x00foo\x00foo'.encode('base64'))
+        self.send('AUTH PLAIN', b64encode('\x00foo\x00foo'))
         self.assert_equals(3, len(self.command_parser.replies))
         self._check_last_code(235)
         code, reply_text = self.command_parser.replies[-1]
@@ -176,7 +176,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         # [authzid] \x00 authcid \x00 passwd
         # smtplib in Python 2.3 will send an additional authzid (which is equal 
         # to authcid)
-        self.send('AUTH PLAIN', u'ignored\x00foo\x00foo'.encode('base64'))
+        self.send('AUTH PLAIN', b64encode('ignored\x00foo\x00foo'))
         self.assert_equals(3, len(self.command_parser.replies))
         self._check_last_code(235)
         code, reply_text = self.command_parser.replies[-1]
@@ -186,7 +186,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.session._authenticator = DummyAuthenticator()
         
         self.send('EHLO', 'foo.example.com')
-        base64_credentials = u'\x00foo\x00bar'.encode('base64')
+        base64_credentials = b64encode('\x00foo\x00bar')
         self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
         self._check_last_code(535)
     
@@ -202,7 +202,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.session._authenticator = DummyAuthenticator()
         
         self.send('EHLO', 'foo.example.com')
-        base64_credentials = u'\x00foo'.encode('base64')
+        base64_credentials = b64encode('\x00foo')
         self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
         self.assert_equals(3, len(self.command_parser.replies))
         self._check_last_code(501)

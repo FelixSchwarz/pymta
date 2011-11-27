@@ -24,7 +24,7 @@
 
 import re
 
-from pymta.compat import set
+from pymta.compat import set, dict_iterkeys, dict_iteritems, dict_itervalues
 
 __all__ = ['StateMachine', 'StateMachineDefinitionError', 'StateMachineError']
 
@@ -108,25 +108,25 @@ class StateMachine(object):
     
     def known_actions(self):
         actions = set()
-        for action_name in self._transitions.values():
+        for action_name in dict_itervalues(self._transitions):
             actions = actions.union(action_name)
         return actions
     
     def allowed_actions(self):
         current_transitions = self._transitions.get(self.state(), {})
         _allowed_actions = set()
-        for action_name, (to_state, handler, operations, condition) in current_transitions.items():
+        for action_name, (to_state, handler, operations, condition) in dict_iteritems(current_transitions):
             if not self._is_condition_satisfied(condition):
                 continue
             _allowed_actions.add(action_name)
         return _allowed_actions
     
     def known_non_final_states(self):
-        return set(self._transitions.keys())
+        return set(dict_iterkeys(self._transitions))
     
     def known_states(self):
         states = self.known_non_final_states()
-        for from_state, action_names in self._transitions.items():
+        for from_state, action_names in dict_iteritems(self._transitions):
             for action_name in action_names:
                 (to_state, handler, operations, condition) = self._transitions[from_state][action_name]
                 states.update((to_state,))

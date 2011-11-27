@@ -26,6 +26,8 @@ from pymta.api import IMTAPolicy
 from pymta.command_parser import SMTPCommandParser
 from pymta.lib import PythonicTestCase
 from pymta.test_util import BlackholeDeliverer
+from pymta.compat import basestring
+
 from tests.util import MockChannel
 
 
@@ -145,4 +147,3 @@ class CommandParsingTest(PythonicTestCase):
         self.send('\r\n.\r\n')
         self.assert_no_messages_received()
         self.assert_true(self.last_reply().startswith('552 '))
-

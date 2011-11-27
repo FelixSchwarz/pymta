@@ -23,6 +23,7 @@
 # THE SOFTWARE.
 
 from pymta.api import IMTAPolicy, PolicyDecision
+from pymta.compat import b64encode
 
 from tests.util import CommandParserTestCase, DummyAuthenticator
 
@@ -67,7 +68,7 @@ class BasicPolicyTest(CommandParserTestCase):
                 return False
         self.init(policy=FalsePolicy(), authenticator=DummyAuthenticator())
         self.send('EHLO', 'foo.example.com')
-        base64_credentials = u'\x00foo\x00foo'.encode('base64')
+        base64_credentials = b64encode('\x00foo\x00foo')
         self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
     
     

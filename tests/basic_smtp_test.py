@@ -28,6 +28,7 @@ import time
 
 from pymta.api import IMTAPolicy
 from pymta.test_util import DebuggingMTA, SMTPTestCase
+from pymta.compat import b
 
 from tests.util import DummyAuthenticator
 
@@ -164,7 +165,7 @@ class BasicSMTPTest(SMTPTestCase):
         e = self.assert_raises(expected_exceptions, self.connection.sendmail, 
                                'from@example.com', 'foo@example.com', msg)
         self.assert_equals(552, e.smtp_code)
-        self.assert_equals('message exceeds fixed maximum message size', e.smtp_error)
+        self.assert_equals(b('message exceeds fixed maximum message size'), e.smtp_error)
     
     def service_is_available(self):
         # On a normal system we should be able to reconnect after a dropped
@@ -179,8 +180,7 @@ class BasicSMTPTest(SMTPTestCase):
                 socket.setdefaulttimeout(old_default)
         except socket.timeout:
             return False
-        
-    
+
     def test_workerprocess_detects_closed_connections_when_reading(self):
         """Check that the WorkerProcess gracefully handles connections which are
         closed without QUIT. This can happen due to network problems or 
@@ -216,6 +216,3 @@ class BasicSMTPTest(SMTPTestCase):
         
         time.sleep(0.5)
         self.assert_true(self.service_is_available())
-        
-
-

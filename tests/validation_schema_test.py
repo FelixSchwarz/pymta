@@ -28,6 +28,7 @@ from pycerberus.validators import StringValidator
 
 from pymta.lib import PythonicTestCase
 from pymta.validation import AuthPlainSchema, MailFromSchema, SMTPCommandArgumentsSchema
+from pymta.compat import b64encode
 
 
 class CommandWithoutParametersTest(PythonicTestCase):
@@ -180,18 +181,18 @@ class AuthPlainSchemaTest(PythonicTestCase):
     
     def test_can_extract_base64_decoded_string(self):
         expected_parameters = dict(username='foo', password='foo ', authzid=None)
-        parameters = self.schema().process(self.base64(u'\x00foo\x00foo '))
+        parameters = self.schema().process(self.base64('\x00foo\x00foo '))
         self.assert_equals(expected_parameters, parameters)
     
     def base64(self, value):
-        return unicode(value).encode('base64').strip()
+        return b64encode(value).strip()
     
     def assert_bad_input(self, input):
         e = self.assert_raises(InvalidDataError, lambda: self.schema().process(input))
         return e
     
     def test_reject_more_than_one_parameter(self):
-        input = self.base64(u'\x00foo\x00foo') + ' ' + self.base64(u'\x00foo\x00foo')
+        input = self.base64('\x00foo\x00foo') + ' ' + self.base64('\x00foo\x00foo')
         self.assert_bad_input(input)
     
     def test_rejects_bad_base64(self):
@@ -199,7 +200,7 @@ class AuthPlainSchemaTest(PythonicTestCase):
         self.assert_equals('Garbled data sent', e.msg())
     
     def test_rejects_invalid_format(self):
-        e = self.assert_bad_input(u'foobar'.encode('base64'))
+        e = self.assert_bad_input(b64encode('foobar'))
         self.assert_equals('Garbled data sent', e.msg())
 
 

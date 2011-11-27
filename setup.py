@@ -1,33 +1,35 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
-
-import os
-
-import setuptools
-
-from pymta.lib.distribution_helpers import information_from_file
-
-if __name__ == '__main__':
-    release_filename = os.path.join('pymta', 'release.py')
-    externally_defined_parameters= information_from_file(release_filename)
-    
-    setuptools.setup(
-          install_requires=['pycerberus >= 0.5dev'],
-          
-          # simple_super is not zip_safe
-          zip_safe=False,
-          packages=setuptools.find_packages(),
-          classifiers = [
-              'Development Status :: 4 - Beta',
-              'Intended Audience :: Developers',
-              'License :: OSI Approved :: MIT License',
-              'Operating System :: OS Independent',
-              'Programming Language :: Python',
-              'Topic :: Communications :: Email',
-              'Topic :: Software Development :: Libraries :: Python Modules',
-            ],
-          test_suite = 'nose.collector',
-          **externally_defined_parameters
-    )
+from setuptools import setup, find_packages
 
 
+setup(
+        name='pymta',
+        version='0.6dev',
+        description='library to build a custom SMTP server',
+        long_description="""
+pymta is a library to build a custom SMTP server in Python. This is useful if 
+you want to...
+
+* test mail-sending code against a real SMTP server even in your unit tests.
+* build a custom SMTP server with non-standard behavior without reimplementing 
+  the whole SMTP protocol.
+* have a low-volume SMTP server which can be easily extended using Python""",
+        zip_safe=False,
+        packages=find_packages(),
+        license='MIT',
+        author='Felix Schwarz',
+        author_email='felix.schwarz@oss.schwarz.eu',
+        url='http://www.schwarz.eu/opensource/projects/pymta',
+        install_requires=['pycerberus >= 0.5dev'],
+        tests_require=['nose'],
+        test_suite='nose.collector',
+        classifiers=[
+                'Development Status :: 4 - Beta',
+                'Intended Audience :: Developers',
+                'License :: OSI Approved :: MIT License',
+                'Operating System :: OS Independent',
+                'Programming Language :: Python',
+                'Topic :: Communications :: Email',
+                'Topic :: Software Development :: Libraries :: Python Modules',
+                ],
+)

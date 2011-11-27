@@ -22,6 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from pymta.compat import b64encode
+
 from tests.util import CommandParserTestCase, DummyAuthenticator
 
 
@@ -131,20 +133,20 @@ class SMTPParameterValidationTest(CommandParserTestCase):
         self.session._authenticator = DummyAuthenticator()
     
     def base64(self, value):
-        return unicode(value).encode('base64').strip()
+        return b64encode(value).strip()
     
     def test_auth_plain_accepts_correct_authentication(self):
         self.inject_authenticator()
         self.ehlo()
         
-        self.send_valid('AUTH PLAIN', u'\x00foo\x00foo'.encode('base64'))
+        self.send_valid('AUTH PLAIN', b64encode('\x00foo\x00foo'))
     
     def test_auth_plain_requires_exactly_one_parameter(self):
         self.inject_authenticator()
         self.ehlo()
         
         self.send_invalid('AUTH PLAIN')
-        base64_credentials = self.base64(u'\x00foo\x00foo')
+        base64_credentials = self.base64('\x00foo\x00foo')
         self.send_invalid('AUTH PLAIN', base64_credentials + ' ' + base64_credentials)
     
     def test_auth_plain_detects_bad_base64_credentials(self):
@@ -158,6 +160,6 @@ class SMTPParameterValidationTest(CommandParserTestCase):
         self.inject_authenticator()
         self.ehlo()
         
-        self.send_invalid('AUTH PLAIN', self.base64(u'\x00foo\x00bar'))
+        self.send_invalid('AUTH PLAIN', self.base64('\x00foo\x00bar'))
 
 

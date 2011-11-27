@@ -7,8 +7,10 @@ API and some convenience functionality."""
 #  - Martin Häcker <martin.haecker@agile42.com>
 
 from unittest import TestCase
+import sys
 
 from pymta.lib.simple_super import SuperProxy
+from pymta.compat import dict_iteritems
 
 
 __all__ = ['PythonicTestCase']
@@ -21,8 +23,8 @@ class PythonicTestCase(TestCase):
     def assert_raises(self, exception_type, callable, *args, **kwargs):
         try:
             callable(*args, **kwargs)
-        except exception_type, e:
-            return e
+        except exception_type:
+            return sys.exc_info()[1]
         # We want the same error message as assertRaises but we must not 
         # assume that callable is idempotent
         self.assertRaises(exception_type, lambda: None)
@@ -59,7 +61,7 @@ class PythonicTestCase(TestCase):
         raise self.failureException(message)
     
     def assert_dict_contains(self, expected_sub_dict, actual_super_dict):
-        for key, value in expected_sub_dict.items():
+        for key, value in dict_iteritems(expected_sub_dict):
             message = "%s:%s not in %s" % (repr(key), repr(value), repr(actual_super_dict))
             self.assert_contains(key, actual_super_dict, msg=message)
             self.assert_equals(value, actual_super_dict[key], msg=message)

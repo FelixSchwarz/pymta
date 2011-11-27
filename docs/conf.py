@@ -1,17 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# -- Import project information ------------------------------------------------
-
-import os
-
-def get_release_info():
-    release_info = {}
-    execfile(os.path.join('..', 'pymta', 'release.py'), release_info)
-    return release_info
-release_info = get_release_info()
-
-# -- General configuration -----------------------------------------------------
-
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.todo']
@@ -29,17 +17,17 @@ source_suffix = '.txt'
 master_doc = 'index'
 
 # General information about the project.
-project = release_info['name']
-copyright = release_info['_copyright']
+project = 'pymta'
+copyright = '2008-2011 Felix Schwarz'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 # The short X.Y version.
-version = release_info['version']
+version = '0.5'
 # The full version, including alpha/beta/rc tags.
-release = version + ''
+release = '0.5dev'
 
 # List of directories, relative to source directory, that shouldn't be searched
 # for source files.
@@ -85,21 +73,3 @@ latex_documents = [
   ('index', 'pymta.tex', u'pymta Documentation',
    u'Felix Schwarz', 'manual'),
 ]
-
-
-# -- Add source directory to PYTHONPATH ----------------------------------------
-
-import os
-import sys
-
-# don't have to set PYTHONPATH before building the documentation
-source_dir = os.path.abspath('..')
-sys.path.insert(0, source_dir)
-
-# TODO: This does not work - zope.component is not found...
-# libdir = os.path.abspath(os.path.join('..', 'lib'))
-# import site
-# site.addsitedir(libdir)
-
-
-

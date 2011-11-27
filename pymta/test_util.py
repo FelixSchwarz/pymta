@@ -29,7 +29,6 @@ tests using pymta:
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from Queue import Queue
 import random
 import socket
 import threading
@@ -38,6 +37,7 @@ import time
 from pymta.api import IMessageDeliverer, IMTAPolicy
 from pymta.lib import PythonicTestCase
 from pymta.mta import PythonMTA
+from pymta.compat import Queue, print_
 
 
 __all__ = ['BlackholeDeliverer', 'DebuggingMTA', 'MTAThread', 'SMTPTestCase']
@@ -94,8 +94,7 @@ class MTAThread(threading.Thread):
         self.server.shutdown_server()
         threading.Thread.join(self, timeout=timeout_seconds)
         if self.isAlive():
-            print "WARNING: Thread still alive. Timeout while waiting for " + \
-                      "termination!"
+            print_("WARNING: Thread still alive. Timeout while waiting for termination!")
 
 
 class SMTPTestCase(PythonicTestCase):
@@ -142,6 +141,7 @@ class SMTPTestCase(PythonicTestCase):
                 tries += 1
                 time.sleep(0.1)
             else:
+                sock.close()
                 return
         assert False, 'MTA not reachable'
     
@@ -159,5 +159,3 @@ class SMTPTestCase(PythonicTestCase):
         """Return a list of received messages which are stored in the 
         BlackholeDeliverer."""
         return self.deliverer.received_messages
-
-
