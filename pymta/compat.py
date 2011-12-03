@@ -35,8 +35,8 @@ if sys.version_info < (3, 0):
     binary = bytes = str
     unicode = unicode
     range = xrange
-    b64encode = lambda x: x.encode('base64')
-    b64decode = lambda x: x.decode('base64')
+    b64encode = lambda x: str(x).encode('base64')
+    b64decode = lambda x: str(x).decode('base64')
     func_code = lambda func: func.im_func.func_code
     dict_items = lambda dct: dct.items()
     dict_keys = lambda dct: dct.keys()
