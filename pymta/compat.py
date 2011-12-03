@@ -35,9 +35,8 @@ if sys.version_info < (3, 0):
     binary = bytes = str
     unicode = unicode
     range = xrange
-    b = lambda x, encoding='iso-8859-1': x.encode(encoding) if isinstance(x, unicode) else str(x)
-    b64encode = lambda x: base64.b64encode(x)
-    b64decode = lambda x: base64.b64decode(x)
+    b64encode = lambda x: x.encode('base64')
+    b64decode = lambda x: x.decode('base64')
     func_code = lambda func: func.im_func.func_code
     dict_items = lambda dct: dct.items()
     dict_keys = lambda dct: dct.keys()
@@ -51,7 +50,6 @@ else:
     binary = bytes = b = bytes
     unicode = str
     range = range
-    b = lambda x, encoding='iso-8859-1': x.encode(encoding) if isinstance(x, unicode) else bytes(x)
     b64encode = lambda x: base64.b64encode(b(x)).decode('ascii')
     b64decode = lambda x: base64.b64decode(b(x)).decode('ascii')
     func_code = lambda func: func.__func__.__code__
@@ -67,3 +65,9 @@ if sys.version_info < (2, 4):
     from sets import Set as set
 else:
     set = set
+
+
+def b(x, encoding='iso-8859-1'):
+    if isinstance(x, unicode):
+        return x.encode(encoding)
+    return bytes(x)
