@@ -3,6 +3,7 @@ Changelog for pymta
 ===================
 
 dev
+- pymta now also supports Python 3 (contributed by Alex Grönholm)
 - require pycerberus >= 0.5 to simplify some validation code
 
 0.5.2 (12.06.2010)
