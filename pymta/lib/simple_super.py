@@ -4,7 +4,7 @@
 # License: Public Domain
 # Authors: Martin Häcker, Felix Schwarz
 
-# Version 1.0.5
+# Version 1.0.6
 
 # This is how it works:
 # In the superclass of the class where you want to use this
@@ -19,12 +19,16 @@
 # self.super.whatever_method() # get a proxy for the superclass
 
 # Known Bugs:
-# Works only for object subclasses
+#  - works only for object subclasses
+#  - does not work inside '__call__' method
 
 # TODO:
 # - Package it all up nicely so it's super easy to use
 
 # Changelog
+# 1.0.6 (2011-02-21)
+#   - fix usage of "self.super(...)" inside "__init__()"
+#
 # 1.0.5 (2010-06-12)
 #   - Avoid exception if no source code could be found
 #
@@ -180,12 +184,29 @@ class SuperFinder(object):
 class SuperProxy(object):
     "This has as few methods as possible, to serve as an ideal proxy."
     
+    def __init__(self):
+        # not using '__initialized' because of Python's '__' name mangling
+        self._initialized__ = True
+    
     def __call__(self, *vargs, **kwargs):
         method = SuperFinder().super_method()
         return SmartMethodCall(method, *vargs, **kwargs).call_with_correct_parameters()
     
-    def __getattr__(self, method_name):
-        return SuperFinder().super_method(method_name=method_name)
+    def __getattribute__(self, name):
+        # even if SuperProxy has no explicitely declared __init__ method, object
+        # has one. Therefore __getattr__ is not called for 'self.super.__init__'
+        # and we have to resort to __getattribute__.
+        # 
+        # The flag '__initialized' ensures that the actual constructor of 
+        # SuperProxy can be called (once) :-)
+        if name == '__call__':
+            return object.__getattribute__(self, '__call__')
+        if name == '__init__':
+            try:
+                object.__getattribute__(self, '_initialized__')
+            except AttributeError:
+                return object.__getattribute__(self, '__init__')
+        return SuperFinder().super_method(method_name=name)
 
 
 # ------------------------------------------------------------------------------
@@ -354,6 +375,18 @@ class SuperTests(unittest.TestCase):
             def foo(self, some_parameter, another_parameter='fnord', **kwargs):
                 return self.super()
         Lower().foo(None).verify()
+    
+    def test_can_use_self_super_inside_constructor(self):
+        class Upper(Super):
+            def __init__(self, some_parameter):
+                assert some_parameter == True
+                # using explicit call 'self.super.__init__()' to trigger bug
+                return self.super.__init__()
+        class Lower(Upper):
+            def __init__(self, some_parameter):
+                return self.super.__init__(some_parameter)
+        lower = Lower(True)
+        assert lower.did_call_super == False
 
 
 # TODO: consider adding support for nested tuple unpacking? 
