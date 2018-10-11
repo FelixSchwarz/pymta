@@ -5,7 +5,7 @@ import sys
 
 from pycerberus import InvalidDataError
 
-from pymta.compat import dict_iteritems, dict_itervalues, basestring
+from pymta.compat import basestring
 from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
 from pymta.statemachine import StateMachine, StateMachineError
@@ -54,8 +54,8 @@ class SMTPSession(object):
 
     def _get_all_commands(self, including_quit=False):
         commands = set()
-        for actions in dict_itervalues(self.state._transitions):
-            for command_name, transition in dict_iteritems(actions):
+        for actions in self.state._transitions.values():
+            for command_name, transition in actions.items():
                 target_state = transition[0]
                 if target_state in ['new']:
                     continue

@@ -7,10 +7,10 @@ from pycerberus.i18n import _
 from pycerberus.schemas import PositionalArgumentsParsingSchema
 from pycerberus.validators import EmailAddressValidator, IntegerValidator, StringValidator
 
-from pymta.compat import dict_keys, dict_values, b, b64decode
+from pymta.compat import b64decode
+
 
 __all__ = ['HeloSchema', 'MailFromSchema', 'RcptToSchema', 'SMTPCommandArgumentsSchema']
-
 
 # ------------------------------------------------------------------------------
 # General infrastructure
@@ -97,8 +97,8 @@ class MailFromSchema(SMTPCommandArgumentsSchema):
         lower_case_key_value_pairs = [(item[0].lower(), item[1]) for item in key_value_pairs]
         options = dict(lower_case_key_value_pairs)
 
-        parameter_names = parameter_names + dict_keys(options)
-        arguments = [arguments[0]] + dict_values(options)
+        parameter_names = parameter_names + list(options)
+        arguments = [arguments[0]] + list(options.values())
         return parameter_names, arguments
 
     def _process_fields(self, fields, context):

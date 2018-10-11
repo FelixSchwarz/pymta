@@ -101,8 +101,7 @@ which was added to the standard library in Python 2.6 (there are backports for
 Python 2.4 and 2.5). Furthermore you need to install 
 `pycerberus <http://www.schwarz.eu/opensource/projects/pycerberus>`_.
 
-pymta supports Python 2.3-2.7. With Python 2.3 you can only serve one 
-connection at a time due to the lack of a multiprocessing module.
+pymta supports Python 2.7 and Python 3.4+.
 
 
 multiprocessing
