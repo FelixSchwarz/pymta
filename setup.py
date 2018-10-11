@@ -17,7 +17,7 @@ def requires_from_file(filename):
 
 setup(
     name='pymta',
-    version='0.6dev',
+    version='0.6.0',
     description='library to build a custom SMTP server',
     long_description="""
 pymta is a library to build a custom SMTP server in Python. This is useful if

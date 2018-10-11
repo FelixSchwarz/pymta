@@ -2,9 +2,11 @@
 Changelog for pymta
 ===================
 
-dev
+0.6.0 (2018-10-11)
 - pymta now also supports Python 3 (contributed by Alex Grönholm)
 - require pycerberus >= 0.5 to simplify some validation code
+- dropped support for Python 2.3-2.6 (still supporting Python 2.7)
+
 
 0.5.2 (12.06.2010)
 - Fix bug - detect of command/message also when the terminator is sent in 
