@@ -1,10 +1,9 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
 
-
 from pycerberus.errors import InvalidDataError
+from pythonic_testcase import *
 
-from pymta.lib import PythonicTestCase
 from pymta.validation import SMTPEmailValidator
 
 

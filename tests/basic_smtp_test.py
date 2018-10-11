@@ -5,6 +5,8 @@ import smtplib
 import socket
 import time
 
+from pythonic_testcase import *
+
 from pymta.api import IMTAPolicy
 from pymta.test_util import DebuggingMTA, SMTPTestCase
 from pymta.compat import b
@@ -25,7 +27,7 @@ class BasicSMTPTest(SMTPTestCase):
                             policy_class=policy_class)
 
     def init_mta(self, policy_class=IMTAPolicy):
-        self.super()
+        super(BasicSMTPTest, self).init_mta(policy_class)
         self.connection = smtplib.SMTP()
         self.connection.set_debuglevel(0)
         self.connection.connect(self.hostname, self.listen_port)
@@ -36,7 +38,7 @@ class BasicSMTPTest(SMTPTestCase):
                 self.connection.quit()
             except smtplib.SMTPServerDisconnected:
                 pass
-        self.super()
+        super(BasicSMTPTest, self).stop_mta()
 
     def test_helo(self):
         code, replytext = self.connection.helo('foo')
@@ -140,9 +142,9 @@ class BasicSMTPTest(SMTPTestCase):
         # Unfortunately Python's smtplib raises SMTPSenderRefused even if the
         # message was rejected due to size restrictions after issuing MAIL FROM
         # with size verb
-        expected_exceptions = (smtplib.SMTPDataError, smtplib.SMTPSenderRefused)
-        e = self.assert_raises(expected_exceptions, self.connection.sendmail,
-                               'from@example.com', 'foo@example.com', msg)
+        with assert_raises((smtplib.SMTPDataError, smtplib.SMTPSenderRefused)) as exc_state:
+            self.connection.sendmail('from@example.com', 'foo@example.com', msg)
+        e = exc_state.caught_exception
         self.assert_equals(552, e.smtp_code)
         self.assert_equals(b('message exceeds fixed maximum message size'), e.smtp_error)
 

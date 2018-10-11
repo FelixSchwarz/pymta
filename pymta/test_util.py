@@ -14,8 +14,9 @@ import socket
 import threading
 import time
 
+from pythonic_testcase import *
+
 from pymta.api import IMessageDeliverer, IMTAPolicy
-from pymta.lib import PythonicTestCase
 from pymta.mta import PythonMTA
 from pymta.compat import Queue
 
@@ -86,7 +87,7 @@ class SMTPTestCase(PythonicTestCase):
     Please make sure that you call the super method for setUp and tearDown."""
 
     def setUp(self):
-        self.super()
+        super(SMTPTestCase, self).setUp()
         self.hostname = 'localhost'
         self.listen_port = random.randint(8000, 40000)
         self.mta_thread = None
@@ -133,7 +134,7 @@ class SMTPTestCase(PythonicTestCase):
     def tearDown(self):
         """Stops the MTA thread."""
         self.stop_mta()
-        self.super()
+        super(SMTPTestCase, self).tearDown()
 
     def get_received_messages(self):
         """Return a list of received messages which are stored in the

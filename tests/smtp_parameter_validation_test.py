@@ -13,10 +13,10 @@ class SMTPParameterValidationTest(CommandParserTestCase):
         return last_message
 
     def send_invalid(self, command, data=None):
-        return self.super.send(command, data=data, expected_first_digit=5)
+        return super(SMTPParameterValidationTest, self).send(command, data=data, expected_first_digit=5)
 
     def send_valid(self, command, data=None):
-        return self.super.send(command, data=data, expected_first_digit=2)
+        return super(SMTPParameterValidationTest, self).send(command, data=data, expected_first_digit=2)
 
     # -------------------------------------------------------------------------
     # helo/ehlo

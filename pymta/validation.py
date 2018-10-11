@@ -30,7 +30,7 @@ class SMTPEmailValidator(EmailAddressValidator):
         return {'unbalanced_quotes': _('Invalid email address format - use balanced angle brackets.')}
 
     def convert(self, value, context):
-        string_value = self.super()
+        string_value = super(SMTPEmailValidator, self).convert(value, context)
         if string_value.startswith('<') or string_value.endswith('>'):
             match = re.search('^<(.+)>$', string_value)
             if match is None:
@@ -45,7 +45,7 @@ class SizeExtensionValidator(IntegerValidator):
 
     def __init__(self, *args, **kwargs):
         kwargs.update({'required': False, 'min': 1})
-        self.super()
+        super(SizeExtensionValidator, self).__init__(*args, **kwargs)
 
     def messages(self):
         return {'too_low': _('Invalid size: Must be %(min)s or greater.')}
@@ -90,7 +90,7 @@ class MailFromSchema(SMTPCommandArgumentsSchema):
 
     def aggregate_values(self, parameter_names, arguments, context):
         if len(arguments) <= 1:
-            return self.super()
+            return super(MailFromSchema, self).aggregate_values(parameter_names, arguments, context)
         key_value_pairs = [re.split('=', option, 1) for option in arguments[1:]]
 
         self._validate_extension_arguments(key_value_pairs, ' '.join(arguments[1:]), context)
@@ -104,7 +104,7 @@ class MailFromSchema(SMTPCommandArgumentsSchema):
     def _process_fields(self, fields, context):
         if len(fields) > 1 and not self.uses_esmtp(context):
             self.raise_error('no_extensions', '', context)
-        return self.super()
+        return super(MailFromSchema, self)._process_fields(fields, context)
 
 # ------------------------------------------------------------------------------
 

@@ -1,9 +1,10 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
 
+from pythonic_testcase import *
+
 from pymta.api import IMTAPolicy
 from pymta.command_parser import SMTPCommandParser
-from pymta.lib import PythonicTestCase
 from pymta.test_util import BlackholeDeliverer
 from pymta.compat import basestring
 
@@ -13,7 +14,7 @@ from tests.util import MockChannel
 class CommandParsingTest(PythonicTestCase):
 
     def setUp(self):
-        self.super()
+        super(CommandParsingTest, self).setUp()
         self.deliverer = BlackholeDeliverer()
         self.init_command_parser()
 

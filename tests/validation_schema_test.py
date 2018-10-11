@@ -4,8 +4,8 @@
 
 from pycerberus.errors import InvalidDataError
 from pycerberus.validators import StringValidator
+from pythonic_testcase import *
 
-from pymta.lib import PythonicTestCase
 from pymta.validation import AuthPlainSchema, MailFromSchema, SMTPCommandArgumentsSchema
 from pymta.compat import b64encode
 

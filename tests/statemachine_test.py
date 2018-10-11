@@ -1,8 +1,9 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
 
+from pythonic_testcase import *
+
 from pymta.compat import set
-from pymta.lib import PythonicTestCase
 from pymta.statemachine import StateMachine, StateMachineDefinitionError, \
     StateMachineError
 
@@ -10,7 +11,7 @@ from pymta.statemachine import StateMachine, StateMachineDefinitionError, \
 class StateMachineTest(PythonicTestCase):
 
     def setUp(self):
-        self.super()
+        super(StateMachineTest, self).setUp()
         self.state = StateMachine(initial_state='new')
 
     def test_can_initialize_statemachine(self):
@@ -24,7 +25,8 @@ class StateMachineTest(PythonicTestCase):
 
     def test_raise_exception_if_duplicate_action_is_defined(self):
         self.state.add('new', 'processed', 'process')
-        self.assert_raises(StateMachineDefinitionError, self.state.add, 'new', 'new', 'process')
+        with assert_raises(StateMachineDefinitionError):
+            self.state.add('new', 'new', 'process')
 
     # --- introspection ------------------------------------------------------
 
@@ -69,7 +71,8 @@ class StateMachineTest(PythonicTestCase):
     # --- handling states ----------------------------------------------------
 
     def test_can_not_set_state_to_invalid_state(self):
-        self.assert_raises(StateMachineError, self.state.set_state, 'invalid')
+        with assert_raises(StateMachineError):
+            self.state.set_state('invalid')
 
     # --- executing ----------------------------------------------------------
 
@@ -90,23 +93,28 @@ class StateMachineTest(PythonicTestCase):
 
     def test_raise_exception_for_invalid_action(self):
         self.state.add('new', 'processed', 'process')
-        self.assert_raises(StateMachineError, self.state.execute, 'invalid')
+        with assert_raises(StateMachineError):
+            self.state.execute('invalid')
 
         self.state.add('processed', 'new', 'rework')
-        self.assert_raises(StateMachineError, self.state.execute, 'rework')
+        with assert_raises(StateMachineError):
+            self.state.execute('rework')
         self.state.execute('process')
-        self.assert_raises(StateMachineError, self.state.execute, 'process')
+        with assert_raises(StateMachineError):
+            self.state.execute('process')
         self.state.execute('rework')
 
     def test_raise_exception_if_in_impossible_state(self):
         state = StateMachine(initial_state='invalid')
         state.add('new', 'processed', 'process')
-        self.assert_raises(StateMachineError, state.execute, 'process')
+        with assert_raises(StateMachineError):
+            self.state.execute('process')
 
     def test_raise_exception_if_no_outgoing_transition_defined_when_executing(self):
         self.state.add('new', 'processed', 'process')
         self.state.set_state('processed')
-        self.assert_raises(StateMachineError, self.state.execute, 'rework')
+        with assert_raises(StateMachineError):
+            self.state.execute('rework')
 
     # --- transition with operations and conditions --------------------------
 
@@ -138,7 +146,8 @@ class StateMachineTest(PythonicTestCase):
         self.state.add('new', 'new', 'use_tls', operations=('set_tls',))
         self.state.add('new', 'authenticated', 'authenticate', condition='if_tls')
         self.assert_equals('new', self.state.state())
-        self.assert_raises(StateMachineError, self.state.execute, 'authenticate')
+        with assert_raises(StateMachineError):
+            self.state.execute('authenticate')
         self.state.execute('use_tls')
         self.assert_true(self.state.is_set('tls'))
         self.state.execute('authenticate')
@@ -147,9 +156,11 @@ class StateMachineTest(PythonicTestCase):
         self.state.add('new', 'new', 'use_tls', operations=('set_tls',), condition='if_not_tls')
         self.state.add('new', 'authenticated', 'authenticate', condition='if_tls')
 
-        self.assert_raises(StateMachineError, self.state.execute, 'authenticate')
+        with assert_raises(StateMachineError):
+            self.state.execute('authenticate')
 
         self.state.execute('use_tls')
-        self.assert_raises(StateMachineError, self.state.execute, 'use_tls')
+        with assert_raises(StateMachineError):
+            self.state.execute('use_tls')
         self.state.execute('authenticate')
 

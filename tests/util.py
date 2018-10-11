@@ -1,10 +1,10 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
 
+from pythonic_testcase import *
 
 from pymta import SMTPSession
 from pymta.api import IAuthenticator
-from pymta.lib import PythonicTestCase
 from pymta.test_util import BlackholeDeliverer
 
 
@@ -60,13 +60,13 @@ class DummyAuthenticator(IAuthenticator):
 class CommandParserTestCase(PythonicTestCase):
 
     def setUp(self, policy=None):
-        self.super()
+        super(CommandParserTestCase, self).setUp()
         self.init(policy=policy)
 
     def tearDown(self):
         if self.command_parser.open:
             self.close_connection()
-        self.super()
+        super(CommandParserTestCase, self).tearDown()
 
     def init(self, policy=None, authenticator=None):
         self.command_parser = MockCommandParser()
