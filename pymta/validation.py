@@ -101,10 +101,19 @@ class MailFromSchema(SMTPCommandArgumentsSchema):
         arguments = [arguments[0]] + list(options.values())
         return parameter_names, arguments
 
-    def _process_fields(self, fields, context):
+    def _process_fields(self, fields, result, context=None):
+        is_pycerberus06 = (context is None)
+        if is_pycerberus06:
+            context = result
+            result = None
+
         if len(fields) > 1 and not self.uses_esmtp(context):
             self.raise_error('no_extensions', '', context)
-        return super(MailFromSchema, self)._process_fields(fields, context)
+
+        if is_pycerberus06:
+            return super(MailFromSchema, self)._process_fields(fields, context)
+        else:
+            return super(MailFromSchema, self)._process_fields(fields, result, context)
 
 # ------------------------------------------------------------------------------
 
