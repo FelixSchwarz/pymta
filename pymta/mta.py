@@ -88,7 +88,8 @@ class PythonMTA(object):
             except ImportError:
                 use_multiprocessing = False
         if not use_multiprocessing:
-            from pymta.compat import Queue
+            from pymta.compat import queue
+            Queue = queue.Queue
 
         self._shutdown_server.clear()
         self._queue = Queue()

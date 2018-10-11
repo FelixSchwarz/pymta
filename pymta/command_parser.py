@@ -7,7 +7,7 @@ import socket
 from pymta.exceptions import SMTPViolationError
 from pymta.session import SMTPSession
 from pymta.statemachine import StateMachine
-from pymta.compat import Empty, basestring
+from pymta.compat import queue, basestring
 
 __all__ = ['SMTPCommandParser']
 
@@ -213,7 +213,7 @@ class WorkerProcess(object):
                     self._queue.put(new_token)
                     if new_token is None:
                         return None
-                except Empty:
+                except queue.Empty:
                     pass
             except KeyboardInterrupt:
                 return None
@@ -228,7 +228,7 @@ class WorkerProcess(object):
             try:
                 token = self._queue.get(timeout=seconds)
                 break
-            except Empty:
+            except queue.Empty:
                 pass
             except KeyboardInterrupt:
                 break

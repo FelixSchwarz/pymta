@@ -17,8 +17,8 @@ import time
 from pythonic_testcase import *
 
 from pymta.api import IMessageDeliverer, IMTAPolicy
+from pymta.compat import queue
 from pymta.mta import PythonMTA
-from pymta.compat import Queue
 
 
 __all__ = ['BlackholeDeliverer', 'DebuggingMTA', 'MTAThread', 'SMTPTestCase']
@@ -33,7 +33,7 @@ class BlackholeDeliverer(IMessageDeliverer):
 
     def __init__(self):
         super(BlackholeDeliverer, self).__init__()
-        self.__class__.received_messages = Queue()
+        self.__class__.received_messages = queue.Queue()
 
     def new_message_accepted(self, msg):
         self.__class__.received_messages.put(msg)
@@ -45,7 +45,7 @@ class DebuggingMTA(PythonMTA):
 
     def __init__(self, *args, **kwargs):
         PythonMTA.__init__(self, *args, **kwargs)
-        self.queue = Queue()
+        self.queue = queue.Queue()
 
     def serve_forever(self):
         return super(DebuggingMTA, self).serve_forever(use_multiprocessing=False)
