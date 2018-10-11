@@ -1,8 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import re
+
 from setuptools import setup, find_packages
 
+
+def requires_from_file(filename):
+    requirements = []
+    with open(filename, 'r') as requirements_fp:
+        for line in requirements_fp.readlines():
+            match = re.search('^\s*([a-zA-Z][^#]+?)(\s*#.+)?\n$', line)
+            if match:
+                requirements.append(match.group(1))
+    return requirements
 
 setup(
     name='pymta',
@@ -21,7 +32,7 @@ you want to...
     author='Felix Schwarz',
     author_email='felix.schwarz@oss.schwarz.eu',
     url='https://github.com/FelixSchwarz/pymta',
-    install_requires=['pycerberus >= 0.5dev'],
+    install_requires=requires_from_file('requirements.txt'),
     tests_require=['nose'],
     test_suite='nose.collector',
 
