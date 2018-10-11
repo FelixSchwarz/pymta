@@ -5,7 +5,7 @@ This module contains some classes which are probably useful for writing unit
 tests using pymta:
 - MTAThread enables you to run a MTA in a separate thread so that you can test
   interaction with an in-process MTA.
-- DebuggingMTA provides a very simple MTA which just collects all incoming 
+- DebuggingMTA provides a very simple MTA which just collects all incoming
   messages so that you can examine then afterwards.
 """
 
@@ -24,48 +24,48 @@ __all__ = ['BlackholeDeliverer', 'DebuggingMTA', 'MTAThread', 'SMTPTestCase']
 
 
 class BlackholeDeliverer(IMessageDeliverer):
-    """BlackholeDeliverer just stores all received messages in memory in the 
-    class attribute 'received_messages' (which implements a Queue-like 
+    """BlackholeDeliverer just stores all received messages in memory in the
+    class attribute 'received_messages' (which implements a Queue-like
     interface) so that you can examine the received messages later. """
-    
+
     received_messages = None
-    
+
     def __init__(self):
         super(BlackholeDeliverer, self).__init__()
         self.__class__.received_messages = Queue()
-    
+
     def new_message_accepted(self, msg):
         self.__class__.received_messages.put(msg)
 
 
 class DebuggingMTA(PythonMTA):
-    """DebuggingMTA is a very simple implementation of PythonMTA which just 
+    """DebuggingMTA is a very simple implementation of PythonMTA which just
     collects all incoming messages so that you can examine then afterwards."""
-    
+
     def __init__(self, *args, **kwargs):
         PythonMTA.__init__(self, *args, **kwargs)
         self.queue = Queue()
-    
+
     def serve_forever(self):
         return super(DebuggingMTA, self).serve_forever(use_multiprocessing=False)
 
 
 class MTAThread(threading.Thread):
-    """This class runs a PythonMTA in a separate thread which is helpful for 
+    """This class runs a PythonMTA in a separate thread which is helpful for
     unit testing.
-    
-    Attention: Do not use this class together with multiprocessing! 
+
+    Attention: Do not use this class together with multiprocessing!
     http://www.viraj.org/b2evolution/blogs/index.php/2007/02/10/threads_and_fork_a_bad_idea
     """
-    
+
     def __init__(self, server):
         threading.Thread.__init__(self)
         self.server = server
-    
+
     def run(self):
         """Create a new thread which runs the server until stop() is called."""
         self.server.serve_forever()
-    
+
     def stop(self, timeout_seconds=5.0):
         """Stop the mail sink and shut down this thread. timeout_seconds
         specifies how long the caller should wait for the mailsink server to
@@ -79,38 +79,38 @@ class MTAThread(threading.Thread):
 
 class SMTPTestCase(PythonicTestCase):
     """The SMTPTestCase is a unittest.TestCase and provides you with a running
-    MTA listening on 'localhost:[8000-40000]' which you can use in your 
+    MTA listening on 'localhost:[8000-40000]' which you can use in your
     tests. No messages will be delivered to the outside world because the MTA
     configured by default uses the BlackholeDeliverer.
-    
+
     Please make sure that you call the super method for setUp and tearDown."""
-    
+
     def setUp(self):
         self.super()
         self.hostname = 'localhost'
         self.listen_port = random.randint(8000, 40000)
         self.mta_thread = None
         self.init_mta()
-    
+
     def build_mta(self, hostname, listen_port, deliverer, policy_class=None):
         """Return a PythonMTA instance which is configured according to your
         needs."""
         return DebuggingMTA(hostname, listen_port, deliverer,
                             policy_class=policy_class)
-    
+
     def init_mta(self, policy_class=IMTAPolicy):
         """Starts the MTA in a separate thread with a BlackholeDeliver. This
         method also ensures that the MTA is really listening on the specified
         port."""
         self.stop_mta()
         self.deliverer = BlackholeDeliverer
-        self.mta = self.build_mta(self.hostname, self.listen_port, 
+        self.mta = self.build_mta(self.hostname, self.listen_port,
                                   self.deliverer, policy_class)
         self.mta_thread = MTAThread(self.mta)
         self.mta_thread.start()
-        
+
         self._try_to_connect_to_mta(self.hostname, self.listen_port)
-    
+
     def _try_to_connect_to_mta(self, host, port):
         tries = 0
         while tries < 10:
@@ -124,18 +124,18 @@ class SMTPTestCase(PythonicTestCase):
                 sock.close()
                 return
         assert False, 'MTA not reachable'
-    
+
     def stop_mta(self):
         if self.mta_thread is not None:
             self.mta_thread.stop()
             self.mta_thread = None
-    
+
     def tearDown(self):
         """Stops the MTA thread."""
         self.stop_mta()
         self.super()
-    
+
     def get_received_messages(self):
-        """Return a list of received messages which are stored in the 
+        """Return a list of received messages which are stored in the
         BlackholeDeliverer."""
         return self.deliverer.received_messages

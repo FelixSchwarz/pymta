@@ -9,7 +9,7 @@ from tests.util import CommandParserTestCase, DummyAuthenticator
 
 class BasicPolicyTest(CommandParserTestCase):
     "Tests that all commands can be controlled with policies."
-    
+
     def test_connection_can_be_rejected(self):
         class FalsePolicy(IMTAPolicy):
             def accept_new_connection(self, peer):
@@ -20,8 +20,8 @@ class BasicPolicyTest(CommandParserTestCase):
         code, reply_text = self.command_parser.replies[-1]
         self.assert_equals(554, code)
         self.assert_equals('SMTP service not available', reply_text)
-    
-    
+
+
     def test_helo_can_be_rejected(self):
         class FalsePolicy(IMTAPolicy):
             def accept_helo(self, helo_string, message):
@@ -30,8 +30,8 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('HELO', 'foo.example.com', expected_first_digit=5)
         self.send('HELO', 'bar.example.com', expected_first_digit=5)
         self.send('HELO', 'localhost')
-    
-    
+
+
     def test_ehlo_can_be_rejected(self):
         class FalsePolicy(IMTAPolicy):
             def accept_ehlo(self, ehlo_string, message):
@@ -39,8 +39,8 @@ class BasicPolicyTest(CommandParserTestCase):
         self.init(policy=FalsePolicy())
         self.send('EHLO', 'foo.example.com', expected_first_digit=5)
         self.send('EHLO', 'localhost')
-    
-    
+
+
     def test_auth_plain_can_be_rejected(self):
         class FalsePolicy(IMTAPolicy):
             def accept_auth_plain(self, username, password, message):
@@ -49,8 +49,8 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('EHLO', 'foo.example.com')
         base64_credentials = b64encode('\x00foo\x00foo')
         self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
-    
-    
+
+
     def test_from_can_be_rejected(self):
         class FalsePolicy(IMTAPolicy):
             def accept_from(self, sender, message):
@@ -58,8 +58,8 @@ class BasicPolicyTest(CommandParserTestCase):
         self.init(policy=FalsePolicy())
         self.send('HELO', 'foo.example.com')
         self.send('MAIL FROM', 'foo@example.com', expected_first_digit=5)
-    
-    
+
+
     def test_rcptto_can_be_rejected(self):
         class FalsePolicy(IMTAPolicy):
             def accept_rcpt_to(self, new_recipient, message):
@@ -68,8 +68,8 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('HELO', 'foo.example.com')
         self.send('MAIL FROM', 'foo@example.com')
         self.send('RCPT TO', 'to@example.com', expected_first_digit=5)
-    
-    
+
+
     def test_data_can_be_rejected(self):
         class FalsePolicy(IMTAPolicy):
             def accept_data(self, message):
@@ -79,8 +79,8 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('MAIL FROM', 'foo@example.com')
         self.send('RCPT TO', 'to@example.com')
         self.send('DATA', expected_first_digit=5)
-    
-    
+
+
     def test_messages_can_be_rejected(self):
         class FalsePolicy(IMTAPolicy):
             def accept_msgdata(self, msg_data, message):
@@ -92,8 +92,8 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('DATA', expected_first_digit=3)
         rfc822_msg = 'Subject: Test\n\nJust testing...\n'
         self.send('MSGDATA', rfc822_msg, expected_first_digit=5)
-    
-    
+
+
     def test_size_limit_messages_can_be_rejected(self):
         class MaxSizePolicy(IMTAPolicy):
             def max_message_size(self, peer):
@@ -105,11 +105,11 @@ class BasicPolicyTest(CommandParserTestCase):
         self.send('DATA', expected_first_digit=3)
         big_data_chunk = ('x'*70 + '\n') * 1500
         rfc822_msg = 'Subject: Test\n\nJust testing...\n' + big_data_chunk
-        (code, reply_text) = self.send('MSGDATA', rfc822_msg, 
+        (code, reply_text) = self.send('MSGDATA', rfc822_msg,
                                        expected_first_digit=5)
         self.assert_equals(552, code)
         self.assert_equals('message exceeds fixed maximum message size', reply_text)
-    
+
     def test_server_deals_gracefully_with_double_close_because_of_faulty_policy(self):
         class DoubleCloseConnectionPolicy(IMTAPolicy):
             def accept_helo(self, helo_string, message):
@@ -118,7 +118,7 @@ class BasicPolicyTest(CommandParserTestCase):
                 decision._close_connection_after_response = True
                 return decision
         self.init(policy=DoubleCloseConnectionPolicy())
-        
+
         number_replies_before = len(self.command_parser.replies)
         self.session.handle_input('HELO', 'foo.example.com')
         self.assert_equals(number_replies_before, len(self.command_parser.replies))

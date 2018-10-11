@@ -36,7 +36,7 @@ def build_fname_with_changed_path_prefix(project_dir, root, arcname, basename):
     nr_of_dirs = lambda path: len(path.split('/'))
     relative_root = make_relative_filename(project_dir, root)
     assert nr_of_dirs(arcname) <= nr_of_dirs(relative_root), 'Untested'
-    
+
     offset_path_items = relative_root.split('/')[nr_of_dirs(arcname):]
     offset_path = os.path.join(arcname, *offset_path_items)
     tar_fname = os.path.join(project_dir, offset_path, basename)
@@ -57,7 +57,7 @@ def add_files_below_directory(tar, dirname, arcname, project_dir, path_prefix):
 def create_tarball(project_dir, package_files, path_prefix):
     tar_fp = StringIO()
     tar = tarfile.open(fileobj=tar_fp, mode='w')
-    
+
     for filename in package_files:
         arcname = None
         if not isinstance(filename, basestring):
@@ -80,11 +80,11 @@ def main():
     name, version = get_name_and_version()
     this_dir = os.path.abspath(os.path.dirname(__file__))
     build_documentation(this_dir)
-    
-    package_files = ('docs', 'examples', 'pymta', 'tests', 'Changelog.txt', 
+
+    package_files = ('docs', 'examples', 'pymta', 'tests', 'Changelog.txt',
                      'COPYING.txt', 'setup.py', ('build/html', 'docs/html'))
     tar_fp = create_tarball(this_dir, package_files, '%s-%s' % (name, version))
-    
+
     gz_filename = '%s-%s.tar.gz' % (name, version)
     gzip.open(gz_filename, 'wb').write(tar_fp.read())
 

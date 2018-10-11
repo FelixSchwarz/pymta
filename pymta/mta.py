@@ -11,9 +11,9 @@ __all__ = ['PythonMTA']
 
 
 
-def forked_child(queue, server_socket, deliverer_class, policy_class, 
+def forked_child(queue, server_socket, deliverer_class, policy_class,
                  authenticator_class):
-    child = WorkerProcess(queue, server_socket, deliverer_class, policy_class, 
+    child = WorkerProcess(queue, server_socket, deliverer_class, policy_class,
                           authenticator_class)
     child.run()
 
@@ -21,29 +21,29 @@ def forked_child(queue, server_socket, deliverer_class, policy_class,
 
 class PythonMTA(object):
     """Create a new MTA which listens for new connections afterwards.
-    local_address is a string containing either the IP oder the DNS 
-    host name of the interface on which PythonMTA should listen. 
-    deliverer_class, policy_class and authenticator_class are callables which 
+    local_address is a string containing either the IP oder the DNS
+    host name of the interface on which PythonMTA should listen.
+    deliverer_class, policy_class and authenticator_class are callables which
     can be used to add custom behavior. Please note that they must be picklable
     if you use forked worker processes (default).
-    Every new connection gets their own instance of policy_class and 
-    authenticator_class so these classes don't have to be thread-safe. If 
-    you omit the policy, all syntactically valid SMTP commands are 
-    accepted. If there is no authenticator specified, authentication will 
+    Every new connection gets their own instance of policy_class and
+    authenticator_class so these classes don't have to be thread-safe. If
+    you omit the policy, all syntactically valid SMTP commands are
+    accepted. If there is no authenticator specified, authentication will
     not be available."""
-    
-    def __init__(self, local_address, bind_port, deliverer_class, 
+
+    def __init__(self, local_address, bind_port, deliverer_class,
                  policy_class=None, authenticator_class=None):
         self._local_address = local_address
         self._bind_port = bind_port
         self._deliverer_class = deliverer_class
         self._policy_class = policy_class
         self._authenticator_class = authenticator_class
-        
+
         self._queue = None
         self._processes = []
         self._shutdown_server = Event()
-    
+
     def _try_to_bind_to_socket(self, server_socket):
         tries = 0
         while tries < 10:
@@ -54,33 +54,33 @@ class PythonMTA(object):
                 time.sleep(0.1)
             else:
                 break
-    
+
     def _build_server_socket(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # If the server crashed and we restarted it within a very short time 
+        # If the server crashed and we restarted it within a very short time
         # frame, prevent 'address already in use' errors.
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # We want to terminate all children within a reasonable time
         server_socket.settimeout(1)
         self._try_to_bind_to_socket(server_socket)
-        # Don't loose connections in the time frame when a new connection was 
+        # Don't loose connections in the time frame when a new connection was
         # accepted. Python's documentation says the maximum is system dependent
         # but usually 5 so we take that.
         server_socket.listen(5)
         return server_socket
-    
+
     def _get_child_args(self, server_socket):
         return (self._queue, server_socket, self._deliverer_class,
                 self._policy_class, self._authenticator_class)
-    
+
     def _start_new_worker_process(self, server_socket):
-        """Start a new child worker process which will listen on the given 
+        """Start a new child worker process which will listen on the given
         socket and return a reference to the new process."""
         from multiprocessing import Process
         p = Process(target=forked_child, args=self._get_child_args(server_socket))
         p.start()
         return p
-    
+
     def serve_forever(self, use_multiprocessing=True):
         if use_multiprocessing:
             try:
@@ -89,7 +89,7 @@ class PythonMTA(object):
                 use_multiprocessing = False
         if not use_multiprocessing:
             from pymta.compat import Queue
-        
+
         self._shutdown_server.clear()
         self._queue = Queue()
         # Put the initial token in the Queue
@@ -107,9 +107,9 @@ class PythonMTA(object):
             forked_child(*self._get_child_args(server_socket))
         server_socket.close()
         self._queue = None
-    
+
     def shutdown_server(self, timeout_seconds=None):
-        """This method notifies the server that it should stop listening for 
+        """This method notifies the server that it should stop listening for
         new messages and shut down itself. If timeout_seconds was given, the
         method will block for this many seconds at most."""
         self._queue.put(None)

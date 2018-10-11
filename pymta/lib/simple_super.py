@@ -41,12 +41,12 @@
 #   - Moved stand-alone functions into nice classes
 #
 # 1.0.2 (2010-03-27)
-#   - Simplistic heuristic detection if self.super() or 
+#   - Simplistic heuristic detection if self.super() or
 #     self.super(*args, **kwargs) was called so we can pass the right parameters
 #   - Made simple_super compatible with Python 2.3 and old-style classes
 #
 # 1.0.1
-#   - do not add arguments if subclass uses self.super() and super class does 
+#   - do not add arguments if subclass uses self.super() and super class does
 #     not get any arguments besides self.
 #
 # 1.0
@@ -73,11 +73,11 @@ class SmartMethodCall(object):
     def __init__(self, method, *vargs, **kwargs):
         self._method = method
         self._vargs, self._kwargs = self._arguments_for_call(vargs, kwargs)
-    
+
     # --- find correct arguments -----------------------------------------------
     def call_with_correct_parameters(self):
         return self._method(*self._vargs, **self._kwargs)
-    
+
     def _arguments_for_call(self, vargs, kwargs):
         # always prefer explicit arguments
         if self._did_specify_arguments_explicitely(vargs, kwargs):
@@ -87,7 +87,7 @@ class SmartMethodCall(object):
     def _did_specify_arguments_explicitely(self, vargs, kwargs):
         if vargs or kwargs:
             return True
-        
+
         # yes, this is extremly ugly - however in Python 2.x there is no other
         # way to differentiate between self.super(*[], **{}) and self.super()
         frame_info = inspect.getframeinfo(sys._getframe(4))
@@ -115,24 +115,24 @@ class SmartMethodCall(object):
         caller_frame = sys._getframe(3+2)
         caller_arg_names, caller_varg_name, caller_kwarg_name, caller_arg_values = inspect.getargvalues(caller_frame)
         (callee_arg_names, callee_varargs, callee_kwarg_name, callee_defaults) = inspect.getargspec(self._method)
-        
+
         vargs = []
         kwargs = {}
-        
+
         if len(caller_arg_names) > len(callee_arg_names):
             for name in caller_arg_names[len(callee_arg_names):]:
                 kwargs[name] = caller_arg_values[name]
         # [1:..] because we don't need self
         for name in caller_arg_names[1:len(callee_arg_names)]:
             vargs.append(caller_arg_values[name])
-        
+
         if caller_varg_name:
             vargs.extend(caller_arg_values[caller_varg_name])
         if caller_kwarg_name:
             kwargs.update(caller_arg_values[caller_kwarg_name])
-        
+
         return vargs, kwargs
-    
+
 
 class SuperFinder(object):
 
@@ -148,18 +148,18 @@ class SuperFinder(object):
     def _find_caller_self(self):
         arg_names, varg_name, kwarg_name, arg_values = inspect.getargvalues(sys._getframe(3))
         return arg_values[arg_names[0]]
-    
+
     def _points_to_this_function(self, code, func):
         is_python2x = (2 == sys.version_info[0])
         if is_python2x:
             return self._points_to_this_function_py2x(code, func)
         return self._points_to_this_function_py3k(code, func)
-    
+
     def _points_to_this_function_py2x(self, code, func):
-        # Objects special methods like __init__ are c-stuff that is only 
-        # available to python as <slot_wrapper> which don't have im_func 
-        # members, so I can't get the code object to find the actual 
-        # implementation. 
+        # Objects special methods like __init__ are c-stuff that is only
+        # available to python as <slot_wrapper> which don't have im_func
+        # members, so I can't get the code object to find the actual
+        # implementation.
         # However this is not neccessary, as I only want to find methods defined
         # in python (the caller) so I  can just skip all <slot_wrappers>
         if hasattr(func, 'im_func'):
@@ -167,7 +167,7 @@ class SuperFinder(object):
             if id(code) == id(other_code):
                 return True
         return False
-    
+
     def _points_to_this_function_py3k(self, code, func):
         other_code = inspect.getmembers(func)[4][1]
         return id(code) == id(other_code)
@@ -183,21 +183,21 @@ class SuperFinder(object):
 
 class SuperProxy(object):
     "This has as few methods as possible, to serve as an ideal proxy."
-    
+
     def __init__(self):
         # not using '__initialized' because of Python's '__' name mangling
         self._initialized__ = True
-    
+
     def __call__(self, *vargs, **kwargs):
         method = SuperFinder().super_method()
         return SmartMethodCall(method, *vargs, **kwargs).call_with_correct_parameters()
-    
+
     def __getattribute__(self, name):
         # even if SuperProxy has no explicitely declared __init__ method, object
         # has one. Therefore __getattr__ is not called for 'self.super.__init__'
         # and we have to resort to __getattribute__.
-        # 
-        # The flag '__initialized' ensures that the actual constructor of 
+        #
+        # The flag '__initialized' ensures that the actual constructor of
         # SuperProxy can be called (once) :-)
         if name == '__call__':
             return object.__getattribute__(self, '__call__')
@@ -218,18 +218,18 @@ class Super(object):
     super = SuperProxy()
     def __init__(self):
         self.did_call_super = False
-    
+
     def method(self, *vargs, **kwargs):
         self.did_call_super = True
         return self
-    
+
     def verify(self):
         assert self.did_call_super
 
 
 
 class SuperTests(unittest.TestCase):
-    
+
     def test_no_arguments(self):
         class Upper(Super):
             def method(self):
@@ -237,9 +237,9 @@ class SuperTests(unittest.TestCase):
         class Lower(Upper):
             def method(self):
                 return self.super()
-        
+
         Lower().method().verify()
-    
+
     def test_positional_argument(self):
         class Upper(Super):
             def method(self, arg, *vargs):
@@ -250,9 +250,9 @@ class SuperTests(unittest.TestCase):
             def method(self, arg, *vargs):
                 self.super(arg, *vargs)
                 return self.super()
-        
+
         Lower().method('fnord', 23, 42).verify()
-    
+
     def test_test_keyword_argument(self):
         class Upper(Super):
             def method(self, arg1, arg2, **kwargs):
@@ -264,9 +264,9 @@ class SuperTests(unittest.TestCase):
             def method(self, arg1, arg2, **kwargs):
                 self.super(arg1=arg1, arg2=arg2, **kwargs)
                 return self.super()
-        
+
         Lower().method(arg1='fnord', arg2=23, foo='bar').verify()
-    
+
     def test_positional_variable_and_keyword_arguments(self):
         class Upper(Super):
             def method(self, arg, *vargs, **kwargs):
@@ -278,9 +278,9 @@ class SuperTests(unittest.TestCase):
             def method(self, arg, *vargs, **kwargs):
                 self.super(arg, *vargs, **kwargs)
                 return self.super()
-        
+
         Lower().method('fnord', 23, 42, foo='bar').verify()
-    
+
     def test_default_arguments(self):
         class Upper(Super):
             def method(self, arg):
@@ -290,9 +290,9 @@ class SuperTests(unittest.TestCase):
             def method(self, arg='fnord'):
                 self.super(arg)
                 return self.super()
-        
+
         Lower().method().verify()
-    
+
     def test_can_change_arguments_to_super(self):
         class Upper(Super):
             def method(self, arg):
@@ -301,9 +301,9 @@ class SuperTests(unittest.TestCase):
         class Lower(Upper):
             def method(self, arg):
                 return self.super('fnord')
-        
+
         Lower().method('foobar').verify()
-    
+
     def test_super_has_fewer_arguments(self):
         class Upper(Super):
             def method(self, arg):
@@ -312,9 +312,9 @@ class SuperTests(unittest.TestCase):
         class Lower(Upper):
             def method(self, arg1, arg2):
                 return self.super(arg1)
-        
+
         Lower().method(23, 42).verify()
-    
+
     def test_can_call_arbitrary_method_on_super(self):
         class Upper(Super):
             def foo(self):
@@ -322,9 +322,9 @@ class SuperTests(unittest.TestCase):
         class Lower(Upper):
             def bar(self):
                 return self.super.foo()
-        
+
         Lower().bar().verify()
-    
+
     def test_can_use_super_in_init(self):
         # Objects special method like __init__ are special and can't be accessed like
         # normal methods. This test verifies that these methods can still be called.
@@ -336,9 +336,9 @@ class SuperTests(unittest.TestCase):
         class Lower(Upper):
             def __init__(self):
                 return self.super()
-        
+
         self.assertEqual(True, Lower().did_call_super)
-    
+
     def test_do_not_pass_arguments_by_default_if_lower_doesnt_have_any(self):
         # In order to have a nice API using self.super(), we need to be smart
         # so we can can detect the case where no arguments should be passed
@@ -349,9 +349,9 @@ class SuperTests(unittest.TestCase):
         class Lower(Upper):
             def foo(self, default=None, *args, **kwargs):
                 return self.super()
-        
+
         Lower().foo().verify()
-    
+
     def test_use_correct_default_arguments_for_super_method(self):
         class Upper(Super):
             def foo(self, important_key='fnord', *args, **kwargs):
@@ -362,9 +362,9 @@ class SuperTests(unittest.TestCase):
                 # Actually self.super.foo(*args, **kwargs) would work but it's
                 # too easy to use the statement below so we have to support it.
                 return self.super(*args, **kwargs)
-        
+
         Lower().foo().verify()
-    
+
     def test_add_arguments_to_kwargs_if_upper_has_less_named_arguments_than_lower(self):
         class Upper(Super):
             def foo(self, some_parameter, **kwargs):
@@ -375,7 +375,7 @@ class SuperTests(unittest.TestCase):
             def foo(self, some_parameter, another_parameter='fnord', **kwargs):
                 return self.super()
         Lower().foo(None).verify()
-    
+
     def test_can_use_self_super_inside_constructor(self):
         class Upper(Super):
             def __init__(self, some_parameter):
@@ -389,10 +389,10 @@ class SuperTests(unittest.TestCase):
         assert lower.did_call_super == False
 
 
-# TODO: consider adding support for nested tuple unpacking? 
-# Not sure if this is actually used, but I found a note about this in the docs 
+# TODO: consider adding support for nested tuple unpacking?
+# Not sure if this is actually used, but I found a note about this in the docs
 # of the inspect module
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     unittest.main()
 

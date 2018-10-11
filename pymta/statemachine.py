@@ -21,24 +21,24 @@ class StateMachine(object):
         self._state = initial_state
         self._transitions = {}
         self._flags = {}
-    
+
     # --- states ---------------------------
-    
+
     def state(self):
         if self.is_impossible_state():
             return None
         return self._state
-    
+
     def is_impossible_state(self):
         return (self._state not in self.known_states())
-    
+
     def set_state(self, state):
         if state not in self.known_states():
             raise StateMachineError
         self._state = state
-    
+
     # --- transitions ----------------------
-    
+
     def add(self, from_state, to_state, action_name, handler=None, operations=(), condition=None):
         #print 'from_state, to_state, action_name', repr((from_state, to_state, action_name))
         self._transitions.setdefault(from_state, {})
@@ -47,12 +47,12 @@ class StateMachine(object):
             msg = 'Duplicate action "%s" for state "%s" (-> "%s" already known, can not add transition to "%s")' % (action_name, from_state, old_to_state, to_state)
             raise StateMachineDefinitionError(msg)
         self._transitions[from_state][action_name] = (to_state, handler, operations, condition)
-    
+
     def execute(self, action_name):
         if action_name not in self.allowed_actions():
             msg = 'Invalid action "%s", expected one of %s' % (action_name, self.allowed_actions())
             raise StateMachineError(msg)
-        
+
         current_state = self.state()
         current_transitions = self._transitions.get(current_state, {})
         final_state, handler, operations, condition = current_transitions[action_name]
@@ -61,18 +61,18 @@ class StateMachine(object):
         for operation in operations:
             self._execute_operation(operation)
         self._state = final_state
-    
+
     # --- flags ----------------------------
-    
+
     def is_set(self, flag):
         return self._flags.get(flag, False)
-    
+
     def _execute_operation(self, operation):
         match = re.search('^set_(\w+)$', operation)
         assert match is not None
         flag_name = match.group(1)
         self._flags[flag_name] = True
-    
+
     def _is_condition_satisfied(self, condition):
         if condition is None:
             return True
@@ -82,15 +82,15 @@ class StateMachine(object):
         if match.group(1):
             return not self.is_set(flag)
         return self.is_set(flag)
-    
+
     # --- introspection --------------------
-    
+
     def known_actions(self):
         actions = set()
         for action_name in dict_itervalues(self._transitions):
             actions = actions.union(action_name)
         return actions
-    
+
     def allowed_actions(self):
         current_transitions = self._transitions.get(self.state(), {})
         _allowed_actions = set()
@@ -99,10 +99,10 @@ class StateMachine(object):
                 continue
             _allowed_actions.add(action_name)
         return _allowed_actions
-    
+
     def known_non_final_states(self):
         return set(dict_iterkeys(self._transitions))
-    
+
     def known_states(self):
         states = self.known_non_final_states()
         for from_state, action_names in dict_iteritems(self._transitions):

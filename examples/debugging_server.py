@@ -32,10 +32,10 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print_usage()
         sys.exit(0)
-    
+
     host = list_get(sys.argv, 1, default='localhost')
     port = int(list_get(sys.argv, 2, default=8025))
-    
+
     server = PythonMTA(host, port, STDOUTDeliverer)
     try:
         server.serve_forever()

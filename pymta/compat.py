@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
-"""This module provides a unified view on certain symbols that are not present 
+"""This module provides a unified view on certain symbols that are not present
 for all versions of Python."""
 
 import sys
@@ -9,7 +9,7 @@ import base64
 __all__ = ['set']
 
 
-if sys.version_info < (3, 0):  
+if sys.version_info < (3, 0):
     basestring = basestring
     binary = bytes = str
     unicode = unicode
