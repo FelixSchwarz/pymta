@@ -5,7 +5,7 @@ import sys
 
 from pycerberus import InvalidDataError
 
-from pymta.compat import set, dict_iteritems, dict_itervalues, basestring
+from pymta.compat import dict_iteritems, dict_itervalues, basestring
 from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
 from pymta.statemachine import StateMachine, StateMachineError

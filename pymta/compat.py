@@ -6,7 +6,7 @@ for all versions of Python."""
 import sys
 import base64
 
-__all__ = ['set']
+__all__ = []
 
 
 if sys.version_info < (3, 0):
@@ -39,11 +39,6 @@ else:
     dict_iterkeys = lambda dct: dct.keys()
     dict_itervalues = lambda dct: dct.values()
     from queue import Queue, Full, Empty
-
-if sys.version_info < (2, 4):
-    from sets import Set as set
-else:
-    set = set
 
 
 def b(x, encoding='iso-8859-1'):

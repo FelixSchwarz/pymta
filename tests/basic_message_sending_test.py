@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from pymta.api import IMTAPolicy
-from pymta.compat import set, b, b64encode
+from pymta.compat import b64encode
 
 from tests.util import CommandParserTestCase, DummyAuthenticator
 

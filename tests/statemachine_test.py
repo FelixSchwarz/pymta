@@ -3,7 +3,6 @@
 
 from pythonic_testcase import *
 
-from pymta.compat import set
 from pymta.statemachine import StateMachine, StateMachineDefinitionError, \
     StateMachineError
 

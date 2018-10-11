@@ -3,7 +3,7 @@
 
 import re
 
-from pymta.compat import set, dict_iterkeys, dict_iteritems, dict_itervalues
+from pymta.compat import dict_iterkeys, dict_iteritems, dict_itervalues
 
 __all__ = ['StateMachine', 'StateMachineDefinitionError', 'StateMachineError']
 
