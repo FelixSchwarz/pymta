@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
 
+from __future__ import print_function, unicode_literals
 
 from pycerberus.errors import InvalidDataError
 from pycerberus.validators import StringValidator
@@ -113,13 +114,13 @@ class MailFromSchemaTest(PythonicTestCase):
         input_command = 'foo@example.com foo bar'
         call = lambda: self.process(input_command, esmtp=True)
         e = self.assert_raises(InvalidDataError, call)
-        self.assert_equals('Invalid arguments: \'foo bar\'', e.msg())
+        self.assert_equals('Invalid arguments: "foo bar"', e.msg())
 
     def test_present_meaningful_error_message_for_unknown_extensions(self):
         input_command = 'foo@example.com invalid=fnord'
         call = lambda: self.process(input_command, esmtp=True)
         e = self.assert_raises(InvalidDataError, call)
-        self.assert_equals('Invalid extension: \'invalid=fnord\'', e.msg())
+        self.assert_equals('Invalid extension: "invalid=fnord"', e.msg())
 
 
     # ----------------------------------------------------------------------------

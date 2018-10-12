@@ -4,6 +4,9 @@
 classes easily to customize the behavior of your MTA. Everything in here is
 considered part of the public API which should be as stable as possible."""
 
+from __future__ import print_function, unicode_literals
+
+
 __all__ = ['IAuthenticator', 'IMessageDeliverer', 'IMTAPolicy', 'PolicyDecision',
            'PyMTAException']
 

@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
 
+from __future__ import print_function, unicode_literals
+
 from threading import Event
 import socket
 import time

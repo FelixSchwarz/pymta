@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
 
+from __future__ import print_function, unicode_literals
+
 from pycerberus.errors import InvalidDataError
 from pythonic_testcase import *
 

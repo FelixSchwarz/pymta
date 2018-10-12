@@ -9,6 +9,8 @@ tests using pymta:
   messages so that you can examine then afterwards.
 """
 
+from __future__ import print_function, unicode_literals
+
 import random
 import socket
 import threading

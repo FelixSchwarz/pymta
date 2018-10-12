@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
 # SPDX-License-Identifier: MIT
 
+from __future__ import print_function, unicode_literals
+
 import re
 
 from pycerberus.i18n import _
@@ -59,8 +61,8 @@ class MailFromSchema(SMTPCommandArgumentsSchema):
 
     def messages(self):
         return {
-            'invalid_extension': _('Invalid extension: %(smtp_extension)s'),
-            'invalid_smtp_arguments': _('Invalid arguments: %(smtp_arguments)s'),
+            'invalid_extension': _('Invalid extension: "%(smtp_extension)s"'),
+            'invalid_smtp_arguments': _('Invalid arguments: "%(smtp_arguments)s"'),
             'no_extensions': _('No SMTP extensions allowed for plain SMTP.'),
         }
 
@@ -75,14 +77,14 @@ class MailFromSchema(SMTPCommandArgumentsSchema):
             if len(option) == 2:
                 continue
             value = ''.join(option)
-            self.raise_error('invalid_smtp_arguments', value, context, smtp_arguments=repr(input_string))
+            self.raise_error('invalid_smtp_arguments', value, context, smtp_arguments=input_string)
 
     def _assert_only_known_extensions(self, key_value_pairs, input_string, context):
         for key, value in key_value_pairs:
             if key.lower() in self.fieldvalidators():
                 continue
             value = '='.join((key, value))
-            self.raise_error('invalid_extension', value, context, smtp_extension=repr(input_string))
+            self.raise_error('invalid_extension', value, context, smtp_extension=input_string)
 
     def _validate_extension_arguments(self, key_value_pairs, input_string, context):
         self._assert_all_options_have_a_value_assigned(key_value_pairs, input_string, context)

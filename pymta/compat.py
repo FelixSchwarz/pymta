@@ -3,6 +3,8 @@
 """This module provides a unified view on certain symbols that are not present
 for all versions of Python."""
 
+from __future__ import print_function, unicode_literals
+
 try:
     import queue
 except ImportError:
