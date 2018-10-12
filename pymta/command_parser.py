@@ -79,10 +79,10 @@ class SMTPCommandParser(object):
         self.state.add('commands', 'data',     'DATA', _start_receiving_message)
         self.state.add('data',     'commands', 'COMMAND', _finished_receiving_message)
 
+    @property
     def primary_hostname(self):
         # TODO: This should go into a config object!
         return socket.getfqdn()
-    primary_hostname = property(primary_hostname)
 
     # -------------------------------------------------------------------------
     # Communication helper methods
