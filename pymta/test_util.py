@@ -218,12 +218,12 @@ class CommandParserTestCase(PythonicTestCase):
         first_code_digit = int(str(code)[0])
         smtp_reply = "%s %s" % (code, reply_text)
         if expected_first_digit is not None:
-            self.assert_equals(expected_first_digit, first_code_digit, smtp_reply)
+            assert_equals(expected_first_digit, first_code_digit, smtp_reply)
 
     def send(self, command, data=None, expected_first_digit=2):
         number_replies_before = len(self.command_parser.replies)
         self.session.handle_input(command, data)
-        self.assert_equals(number_replies_before + 1, len(self.command_parser.replies))
+        assert_length(number_replies_before + 1, self.command_parser.replies)
         code, reply_text = self.command_parser.replies[-1]
         self.check_reply_code(code, reply_text, expected_first_digit=expected_first_digit)
         return (code, reply_text)
@@ -231,7 +231,7 @@ class CommandParserTestCase(PythonicTestCase):
     def close_connection(self):
         self.send('quit', expected_first_digit=2)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals(221, code)
-        self.assert_equals('localhost closing connection', reply_text)
-        self.assert_false(self.command_parser.open)
+        assert_equals(221, code)
+        assert_equals('localhost closing connection', reply_text)
+        assert_false(self.command_parser.open)
 

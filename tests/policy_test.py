@@ -3,6 +3,8 @@
 
 from __future__ import print_function, unicode_literals
 
+from pythonic_testcase import *
+
 from pymta.api import IMTAPolicy, PolicyDecision
 from pymta.compat import b64encode
 from pymta.test_util import CommandParserTestCase, DummyAuthenticator
@@ -17,11 +19,11 @@ class BasicPolicyTest(CommandParserTestCase):
             def accept_new_connection(self, peer):
                 return False
         self.init(policy=FalsePolicy())
-        self.assert_false(self.command_parser.open)
-        self.assert_equals(1, len(self.command_parser.replies))
+        assert_false(self.command_parser.open)
+        assert_length(1, self.command_parser.replies)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals(554, code)
-        self.assert_equals('SMTP service not available', reply_text)
+        assert_equals(554, code)
+        assert_equals('SMTP service not available', reply_text)
 
 
     def test_helo_can_be_rejected(self):
@@ -109,8 +111,8 @@ class BasicPolicyTest(CommandParserTestCase):
         rfc822_msg = 'Subject: Test\n\nJust testing...\n' + big_data_chunk
         (code, reply_text) = self.send('MSGDATA', rfc822_msg,
                                        expected_first_digit=5)
-        self.assert_equals(552, code)
-        self.assert_equals('message exceeds fixed maximum message size', reply_text)
+        assert_equals(552, code)
+        assert_equals('message exceeds fixed maximum message size', reply_text)
 
     def test_server_deals_gracefully_with_double_close_because_of_faulty_policy(self):
         class DoubleCloseConnectionPolicy(IMTAPolicy):
@@ -123,6 +125,6 @@ class BasicPolicyTest(CommandParserTestCase):
 
         number_replies_before = len(self.command_parser.replies)
         self.session.handle_input('HELO', 'foo.example.com')
-        self.assert_equals(number_replies_before, len(self.command_parser.replies))
-        self.assert_false(self.command_parser.open)
+        assert_length(number_replies_before, self.command_parser.replies)
+        assert_false(self.command_parser.open)
 

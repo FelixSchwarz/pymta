@@ -3,6 +3,8 @@
 
 from __future__ import print_function, unicode_literals
 
+from pythonic_testcase import *
+
 from pymta.api import IMTAPolicy
 from pymta.compat import b64encode
 from pymta.test_util import CommandParserTestCase, DummyAuthenticator
@@ -13,13 +15,13 @@ class BasicMessageSendingTest(CommandParserTestCase):
 
     def _check_last_code(self, expected_code):
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals(expected_code, code)
+        assert_equals(expected_code, code)
 
     def test_new_connection(self):
-        self.assert_equals(1, len(self.command_parser.replies))
+        assert_length(1, self.command_parser.replies)
         self._check_last_code(220)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals('localhost Hello 127.0.0.1', reply_text)
+        assert_equals('localhost Hello 127.0.0.1', reply_text)
         self.close_connection()
 
     def test_noop_does_nothing(self):
@@ -28,19 +30,19 @@ class BasicMessageSendingTest(CommandParserTestCase):
 
     def test_send_helo(self):
         self.send('helo', 'foo.example.com')
-        self.assert_equals(2, len(self.command_parser.replies))
+        assert_length(2, self.command_parser.replies)
         self._check_last_code(250)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals('localhost', reply_text)
+        assert_equals('localhost', reply_text)
         self.close_connection()
 
     def test_reject_duplicated_helo(self):
         self.send('helo', 'foo.example.com')
         code, reply_text = self.send('helo', 'foo.example.com',
                                       expected_first_digit=5)
-        self.assert_equals(503, code)
+        assert_equals(503, code)
         expected_message = 'Command "helo" is not allowed here'
-        self.assert_true(reply_text.startswith(expected_message), reply_text)
+        assert_true(reply_text.startswith(expected_message), message=reply_text)
         self.close_connection()
 
     def test_helo_without_hostname_is_rejected(self):
@@ -50,7 +52,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('helo', 'foo')
 
     def test_helo_with_invalid_arguments_is_rejected(self):
-        expect_invalid = lambda data: self.assert_equals(501, self.send('helo', data, expected_first_digit=5)[0])
+        expect_invalid = lambda data: assert_equals(501, self.send('helo', data, expected_first_digit=5)[0])
         expect_invalid('')
         expect_invalid('  ')
         expect_invalid(None)
@@ -65,10 +67,10 @@ class BasicMessageSendingTest(CommandParserTestCase):
 
     def test_invalid_commands_are_recognized(self):
         self.session.handle_input('invalid')
-        self.assert_equals(2, len(self.command_parser.replies))
+        assert_length(2, self.command_parser.replies)
         self._check_last_code(500)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals('unrecognized command "invalid"', reply_text)
+        assert_equals('unrecognized command "invalid"', reply_text)
         self.close_connection()
 
     def _send_mail(self, rfc822_msg):
@@ -84,23 +86,23 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.close_connection()
 
         received_messages = self.deliverer.received_messages
-        self.assert_equals(1, received_messages.qsize())
+        assert_equals(1, received_messages.qsize())
         msg = received_messages.get()
-        self.assert_equals('127.0.0.1', msg.peer.remote_ip)
-        self.assert_equals(4567, msg.peer.remote_port)
+        assert_equals('127.0.0.1', msg.peer.remote_ip)
+        assert_equals(4567, msg.peer.remote_port)
 
-        self.assert_equals('foo.example.com', msg.smtp_helo)
-        self.assert_equals('foo@example.com', msg.smtp_from)
-        self.assert_equals(['bar@example.com'], msg.smtp_to)
-        self.assert_equals(rfc822_msg, msg.msg_data)
+        assert_equals('foo.example.com', msg.smtp_helo)
+        assert_equals('foo@example.com', msg.smtp_from)
+        assert_equals(['bar@example.com'], msg.smtp_to)
+        assert_equals(rfc822_msg, msg.msg_data)
 
     def test_help_is_supported(self):
         code, reply_text = self.send('HELP')
-        self.assert_equals(214, code)
+        assert_equals(214, code)
         supported_commands = set(reply_text[1].split(' '))
         expected_commands = set(['AUTH', 'DATA', 'EHLO', 'HELO', 'HELP', 'MAIL',
                                  'NOOP', 'QUIT', 'RCPT', 'RSET'])
-        self.assert_equals(expected_commands, supported_commands)
+        assert_equals(expected_commands, supported_commands)
 
     def test_support_for_rset(self):
         self.send('HELO', 'foo.example.com')
@@ -110,16 +112,16 @@ class BasicMessageSendingTest(CommandParserTestCase):
 
     def test_send_ehlo_without_authenticator(self):
         self.send('EHLO', 'foo.example.com')
-        self.assert_equals(2, len(self.command_parser.replies))
+        assert_length(2, self.command_parser.replies)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals(250, code)
-        self.assert_equals(set(('localhost', 'HELP')), set(reply_text))
+        assert_equals(250, code)
+        assert_equals(set(('localhost', 'HELP')), set(reply_text))
 
     def test_ehlo_without_hostname_is_rejected(self):
         self.send('EHLO', expected_first_digit=5)
 
     def test_ehlo_with_invalid_arguments_is_rejected(self):
-        expect_invalid = lambda data: self.assert_equals(501, self.send('ehlo', data, expected_first_digit=5)[0])
+        expect_invalid = lambda data: assert_equals(501, self.send('ehlo', data, expected_first_digit=5)[0])
         expect_invalid('')
         expect_invalid('  ')
         expect_invalid(None)
@@ -129,7 +131,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('EHLO', 'foo.example.com')
         base64_credentials = b64encode('\x00foo\x00foo')
         self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
-        self.assert_equals(3, len(self.command_parser.replies))
+        assert_length(3, self.command_parser.replies)
         self._check_last_code(535)
 
     def test_authenticator_advertises_auth_plain_support(self):
@@ -137,17 +139,17 @@ class BasicMessageSendingTest(CommandParserTestCase):
 
         self.send('EHLO', 'foo.example.com')
         code, reply_texts = self.command_parser.replies[-1]
-        self.assert_true('AUTH PLAIN' in reply_texts)
+        assert_contains('AUTH PLAIN', reply_texts)
 
     def test_auth_plain_with_username_and_password_is_accepted(self):
         self.session._authenticator = DummyAuthenticator()
 
         self.send('EHLO', 'foo.example.com')
         self.send('AUTH PLAIN', b64encode('\x00foo\x00foo'))
-        self.assert_equals(3, len(self.command_parser.replies))
+        assert_length(3, self.command_parser.replies)
         self._check_last_code(235)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals('Authentication successful', reply_text)
+        assert_equals('Authentication successful', reply_text)
 
     def test_auth_plain_with_authzid_username_and_password_is_accepted(self):
         self.session._authenticator = DummyAuthenticator()
@@ -158,10 +160,10 @@ class BasicMessageSendingTest(CommandParserTestCase):
         # smtplib in Python 2.3 will send an additional authzid (which is equal
         # to authcid)
         self.send('AUTH PLAIN', b64encode('ignored\x00foo\x00foo'))
-        self.assert_equals(3, len(self.command_parser.replies))
+        assert_length(3, self.command_parser.replies)
         self._check_last_code(235)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals('Authentication successful', reply_text)
+        assert_equals('Authentication successful', reply_text)
 
     def test_auth_plain_with_bad_credentials_is_accepted(self):
         self.session._authenticator = DummyAuthenticator()
@@ -176,7 +178,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
 
         self.send('EHLO', 'foo.example.com')
         self.send('AUTH PLAIN', 'foo', expected_first_digit=5)
-        self.assert_equals(3, len(self.command_parser.replies))
+        assert_length(3, self.command_parser.replies)
         self._check_last_code(501)
 
     def test_auth_plain_with_bad_format_is_rejected(self):
@@ -185,7 +187,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('EHLO', 'foo.example.com')
         base64_credentials = b64encode('\x00foo')
         self.send('AUTH PLAIN', base64_credentials, expected_first_digit=5)
-        self.assert_equals(3, len(self.command_parser.replies))
+        assert_length(3, self.command_parser.replies)
         self._check_last_code(501)
 
     def test_size_restrictions_are_announced_in_ehlo_reply(self):
@@ -196,7 +198,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
 
         self.send('EHLO', 'foo.example.com')
         code, reply_texts = self.command_parser.replies[-1]
-        self.assert_true('SIZE 100' in reply_texts)
+        assert_contains('SIZE 100', reply_texts)
 
     def test_early_rejection_if_size_verb_indicates_big_message(self):
         class RestrictedSizePolicy(IMTAPolicy):
@@ -216,8 +218,8 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('MAIL FROM', '<foo@example.com>   size=106530  ',
                   expected_first_digit=5)
         code, reply_text = self.command_parser.replies[-1]
-        self.assert_equals(501, code)
-        self.assert_equals('No SMTP extensions allowed for plain SMTP.', reply_text)
+        assert_equals(501, code)
+        assert_equals('No SMTP extensions allowed for plain SMTP.', reply_text)
 
     def test_can_still_use_esmtp_after_first_mail(self):
         self.send('EHLO', 'foo.example.com')

@@ -42,28 +42,28 @@ class BasicSMTPTest(SMTPTestCase):
 
     def test_helo(self):
         code, replytext = self.connection.helo('foo')
-        self.assert_equals(250, code)
+        assert_equals(250, code)
 
     def _check_received_mail(self, expected_recipients, expected_helo=None):
         queue = self.get_received_messages()
-        self.assert_equals(1, queue.qsize())
+        assert_equals(1, queue.qsize())
         msg = queue.get()
         if expected_helo is not None:
-            self.assert_equals('foo', msg.smtp_helo)
-        self.assert_equals('from@example.com', msg.smtp_from)
-        self.assert_equals(expected_recipients, msg.smtp_to)
-        self.assert_equals(rfc822_msg, msg.msg_data)
+            assert_equals('foo', msg.smtp_helo)
+        assert_equals('from@example.com', msg.smtp_from)
+        assert_equals(expected_recipients, msg.smtp_to)
+        assert_equals(rfc822_msg, msg.msg_data)
         return msg
 
     def test_send_simple_email(self):
         code, replytext = self.connection.helo('foo')
-        self.assert_equals(250, code)
+        assert_equals(250, code)
         code, replytext = self.connection.mail('from@example.com')
-        self.assert_equals(250, code)
+        assert_equals(250, code)
         code, replytext = self.connection.rcpt('to@example.com')
-        self.assert_equals(250, code)
+        assert_equals(250, code)
         code, replytext = self.connection.data(rfc822_msg)
-        self.assert_equals(250, code)
+        assert_equals(250, code)
         self.connection.quit()
         self._check_received_mail(['to@example.com'], expected_helo='foo')
 
@@ -89,7 +89,7 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.sendmail('from@example.com', recipient, rfc822_msg)
         self.connection.quit()
         msg = self._check_received_mail([recipient])
-        self.assert_equals('admin', msg.username)
+        assert_equals('admin', msg.username)
 
     def test_send_multiple_emails_in_one_connection(self):
         """Check that we can send multiple emails in the same connection (and
@@ -100,14 +100,14 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.sendmail('x@example.com', 'bar@example.com', rfc822_msg)
 
         queue = self.get_received_messages()
-        self.assert_equals(2, queue.qsize())
+        assert_equals(2, queue.qsize())
         first_msg = queue.get()
-        self.assert_not_none(first_msg.smtp_helo)
-        self.assert_equals('x@example.com', first_msg.smtp_from)
+        assert_not_none(first_msg.smtp_helo)
+        assert_equals('x@example.com', first_msg.smtp_from)
 
         second_msg = queue.get()
-        self.assert_equals(first_msg.smtp_helo, second_msg.smtp_helo)
-        self.assert_equals(first_msg.username, second_msg.username)
+        assert_equals(first_msg.smtp_helo, second_msg.smtp_helo)
+        assert_equals(first_msg.username, second_msg.username)
 
     def test_transparency_support_enabled(self):
         """Check that there is transparency support for lines starting with a
@@ -117,9 +117,9 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.quit()
 
         queue = self.get_received_messages()
-        self.assert_equals(1, queue.qsize())
+        assert_equals(1, queue.qsize())
         received_msg = queue.get()
-        self.assert_equals(msg, received_msg.msg_data)
+        assert_equals(msg, received_msg.msg_data)
 
     def test_big_messages_are_rejected(self):
         """Check that messages which exceed the configured maximum message size
@@ -145,8 +145,8 @@ class BasicSMTPTest(SMTPTestCase):
         with assert_raises((smtplib.SMTPDataError, smtplib.SMTPSenderRefused)) as exc_state:
             self.connection.sendmail('from@example.com', 'foo@example.com', msg)
         e = exc_state.caught_exception
-        self.assert_equals(552, e.smtp_code)
-        self.assert_equals(b('message exceeds fixed maximum message size'), e.smtp_error)
+        assert_equals(552, e.smtp_code)
+        assert_equals(b('message exceeds fixed maximum message size'), e.smtp_error)
 
     def service_is_available(self):
         # On a normal system we should be able to reconnect after a dropped
@@ -172,7 +172,7 @@ class BasicSMTPTest(SMTPTestCase):
         # In 0.3 the WorkerProcess would hang and start to eat up the whole CPU
         # so we need to set a sensible timeout so that this test will fail with
         # an appropriate exception.
-        self.assert_true(self.service_is_available())
+        assert_true(self.service_is_available())
 
     def test_workerprocess_detects_closed_connections_when_writing(self):
         """Check that the WorkerProcess gracefully handles connections which are
@@ -196,4 +196,4 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.close()
 
         time.sleep(0.5)
-        self.assert_true(self.service_is_available())
+        assert_true(self.service_is_available())

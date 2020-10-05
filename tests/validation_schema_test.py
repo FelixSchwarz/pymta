@@ -17,11 +17,11 @@ class CommandWithoutParametersTest(PythonicTestCase):
         return SMTPCommandArgumentsSchema()
 
     def test_accept_command_without_parameters(self):
-        self.assert_equals({}, self.schema().process(''))
+        assert_equals({}, self.schema().process(''))
 
     def test_bails_out_if_additional_parameters_are_passed(self):
         e = self.assert_raises(InvalidDataError, lambda: self.schema().process('fnord'))
-        self.assert_equals("Syntactically invalid argument(s) 'fnord'", e.msg())
+        assert_equals("Syntactically invalid argument(s) 'fnord'", e.msg())
 
 
 class CommandWithSingleParameterTest(PythonicTestCase):
@@ -35,7 +35,7 @@ class CommandWithSingleParameterTest(PythonicTestCase):
         schema = self.schema()
         schema.add('parameter', StringValidator)
         schema.set_parameter_order(('parameter',))
-        self.assert_equals({'parameter': 'fnord'}, schema.process('fnord'))
+        assert_equals({'parameter': 'fnord'}, schema.process('fnord'))
 
     def test_bails_out_if_no_parameter_is_passed(self):
         schema = self.schema()
@@ -51,7 +51,7 @@ class CommandWithSingleParameterTest(PythonicTestCase):
         schema = self.schema()
         schema.add('helo', StringValidator)
         schema.set_parameter_order(('helo', ))
-        self.assert_equals({'helo': 'localhost'}, schema.process('localhost'))
+        assert_equals({'helo': 'localhost'}, schema.process('localhost'))
 
     def test_can_specify_parameter_order_declaratively(self):
         class SchemaWithOrderedParameters(SMTPCommandArgumentsSchema):
@@ -60,7 +60,7 @@ class CommandWithSingleParameterTest(PythonicTestCase):
             parameter_order = ('foo', 'bar')
 
         schema = SchemaWithOrderedParameters()
-        self.assert_equals({'foo': 'baz', 'bar': 'qux'}, schema.process('baz qux'))
+        assert_equals({'foo': 'baz', 'bar': 'qux'}, schema.process('baz qux'))
 
 
 class MailFromSchemaTest(PythonicTestCase):
@@ -87,7 +87,7 @@ class MailFromSchemaTest(PythonicTestCase):
         input_command = '<foo@example.com> SIZE=1000'
         call = lambda: self.process(input_command, esmtp=False)
         e = self.assert_raises(InvalidDataError, call)
-        self.assert_equals('No SMTP extensions allowed for plain SMTP.', e.msg())
+        assert_equals('No SMTP extensions allowed for plain SMTP.', e.msg())
 
     def test_can_parse_extensions(self):
         schema = self.schema()
@@ -112,15 +112,17 @@ class MailFromSchemaTest(PythonicTestCase):
 
     def test_present_meaningful_error_message_for_unknown_arguments(self):
         input_command = 'foo@example.com foo bar'
-        call = lambda: self.process(input_command, esmtp=True)
-        e = self.assert_raises(InvalidDataError, call)
-        self.assert_equals('Invalid arguments: "foo bar"', e.msg())
+        with assert_raises(InvalidDataError) as exc_ctx:
+            self.process(input_command, esmtp=True)
+        e = exc_ctx.caught_exception
+        assert_equals('Invalid arguments: "foo bar"', e.msg())
 
     def test_present_meaningful_error_message_for_unknown_extensions(self):
         input_command = 'foo@example.com invalid=fnord'
-        call = lambda: self.process(input_command, esmtp=True)
-        e = self.assert_raises(InvalidDataError, call)
-        self.assert_equals('Invalid extension: "invalid=fnord"', e.msg())
+        with assert_raises(InvalidDataError) as exc_ctx:
+            self.process(input_command, esmtp=True)
+        e = exc_ctx.caught_exception
+        assert_equals('Invalid extension: "invalid=fnord"', e.msg())
 
 
     # ----------------------------------------------------------------------------
@@ -139,13 +141,15 @@ class MailFromSchemaTest(PythonicTestCase):
 
     def test_reject_size_below_zero(self):
         input_command = 'foo@example.com SIZE=-1234'
-        call = lambda: self.process(input_command, esmtp=True)
-        e = self.assert_raises(InvalidDataError, call)
-        self.assert_equals('Invalid size: Must be 1 or greater.', e.msg())
+        with assert_raises(InvalidDataError) as exc_ctx:
+            self.process(input_command, esmtp=True)
+        e = exc_ctx.caught_exception
+        assert_equals('Invalid size: Must be 1 or greater.', e.msg())
 
     def test_reject_non_numeric_size_parameter(self):
         input_command = 'foo@example.com SIZE=fnord'
-        self.assert_raises(InvalidDataError, lambda: self.process(input_command, esmtp=True))
+        with assert_raises(InvalidDataError):
+            self.process(input_command, esmtp=True)
 
 
 class AuthPlainSchemaTest(PythonicTestCase):
@@ -162,13 +166,15 @@ class AuthPlainSchemaTest(PythonicTestCase):
     def test_can_extract_base64_decoded_string(self):
         expected_parameters = dict(username='foo', password='foo ', authzid=None)
         parameters = self.schema().process(self.base64('\x00foo\x00foo '))
-        self.assert_equals(expected_parameters, parameters)
+        assert_equals(expected_parameters, parameters)
 
     def base64(self, value):
         return b64encode(value).strip()
 
     def assert_bad_input(self, input):
-        e = self.assert_raises(InvalidDataError, lambda: self.schema().process(input))
+        with assert_raises(InvalidDataError) as exc_ctx:
+            self.schema().process(input)
+        e = exc_ctx.caught_exception
         return e
 
     def test_reject_more_than_one_parameter(self):
@@ -177,10 +183,10 @@ class AuthPlainSchemaTest(PythonicTestCase):
 
     def test_rejects_bad_base64(self):
         e = self.assert_bad_input('invalid')
-        self.assert_equals('Garbled data sent', e.msg())
+        assert_equals('Garbled data sent', e.msg())
 
     def test_rejects_invalid_format(self):
         e = self.assert_bad_input(b64encode('foobar'))
-        self.assert_equals('Garbled data sent', e.msg())
+        assert_equals('Garbled data sent', e.msg())
 
 
