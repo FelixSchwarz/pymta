@@ -5,8 +5,8 @@ from __future__ import print_function, unicode_literals
 
 from pymta.api import IMTAPolicy
 from pymta.compat import b64encode
+from pymta.test_util import CommandParserTestCase, DummyAuthenticator
 
-from tests.util import CommandParserTestCase, DummyAuthenticator
 
 
 class BasicMessageSendingTest(CommandParserTestCase):

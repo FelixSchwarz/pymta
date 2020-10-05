@@ -10,10 +10,8 @@ import time
 from pythonic_testcase import *
 
 from pymta.api import IMTAPolicy
-from pymta.test_util import DebuggingMTA, SMTPTestCase
 from pymta.compat import b
-
-from tests.util import DummyAuthenticator
+from pymta.test_util import DebuggingMTA, DummyAuthenticator, SMTPTestCase
 
 
 rfc822_msg = 'Subject: Test\n\nJust testing...'

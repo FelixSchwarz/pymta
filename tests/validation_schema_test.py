@@ -7,8 +7,8 @@ from pycerberus.errors import InvalidDataError
 from pycerberus.validators import StringValidator
 from pythonic_testcase import *
 
-from pymta.validation import AuthPlainSchema, MailFromSchema, SMTPCommandArgumentsSchema
 from pymta.compat import b64encode
+from pymta.validation import AuthPlainSchema, MailFromSchema, SMTPCommandArgumentsSchema
 
 
 class CommandWithoutParametersTest(PythonicTestCase):

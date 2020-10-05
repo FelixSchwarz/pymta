@@ -4,8 +4,8 @@
 from __future__ import print_function, unicode_literals
 
 from pymta.api import IMTAPolicy, PolicyDecision
+from pymta.test_util import CommandParserTestCase
 
-from tests.util import CommandParserTestCase
 
 
 class PolicyReturnCodesTest(CommandParserTestCase):

@@ -7,10 +7,8 @@ from pythonic_testcase import *
 
 from pymta.api import IMTAPolicy
 from pymta.command_parser import SMTPCommandParser
-from pymta.test_util import BlackholeDeliverer
 from pymta.compat import basestring
-
-from tests.util import MockChannel
+from pymta.test_util import BlackholeDeliverer, MockChannel
 
 
 class CommandParsingTest(PythonicTestCase):
