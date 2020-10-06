@@ -108,22 +108,22 @@ class SMTPSession(object):
 
     def _build_state_machine(self):
         self.state = StateMachine(initial_state='new')
-        self._add_state('new',     'GREET', 'greeted')
-        self._add_state('greeted', 'HELO',  'initialized')
+        self._add_state('new',             'GREET',      'greeted')
+        self._add_state('greeted',         'HELO',       'initialized')
 
-        self._add_state('greeted', 'EHLO',  'initialized', operations=('set_esmtp',))
+        self._add_state('greeted',         'EHLO',       'initialized', operations=('set_esmtp',))
 
         # ----
-        self._add_state('initialized', 'MAIL FROM',  'sender_known')
+        self._add_state('initialized',     'MAIL FROM',  'sender_known')
 
-        self._add_state('initialized', 'AUTH PLAIN', 'authenticated', condition='if_esmtp')
-        self._add_state('authenticated', 'MAIL FROM',  'sender_known')
+        self._add_state('initialized',     'AUTH PLAIN', 'authenticated', condition='if_esmtp')
+        self._add_state('authenticated',   'MAIL FROM',  'sender_known')
         # ----
 
-        self._add_state('sender_known', 'RCPT TO',  'recipient_known')
+        self._add_state('sender_known',    'RCPT TO',    'recipient_known')
         # multiple recipients
-        self._add_state('recipient_known', 'RCPT TO',  'recipient_known')
-        self._add_state('recipient_known', 'DATA',  'receiving_message')
+        self._add_state('recipient_known', 'RCPT TO',    'recipient_known')
+        self._add_state('recipient_known', 'DATA',       'receiving_message')
         self._add_state('receiving_message', 'MSGDATA',  'initialized')
         self._add_help_noop_and_quit_transitions()
         self._add_rset_transitions()
