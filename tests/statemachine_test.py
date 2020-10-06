@@ -12,7 +12,6 @@ from pymta.statemachine import StateMachine, StateMachineDefinitionError, \
 class StateMachineTest(PythonicTestCase):
 
     def setUp(self):
-        super(StateMachineTest, self).setUp()
         self.state = StateMachine(initial_state='new')
 
     def test_can_initialize_statemachine(self):

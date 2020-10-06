@@ -14,7 +14,6 @@ from pymta.test_util import BlackholeDeliverer, MockChannel
 class CommandParsingTest(PythonicTestCase):
 
     def setUp(self):
-        super(CommandParsingTest, self).setUp()
         self.deliverer = BlackholeDeliverer()
         self.init_command_parser()
 
