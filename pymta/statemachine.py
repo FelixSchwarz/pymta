@@ -41,7 +41,6 @@ class StateMachine(object):
     # --- transitions ----------------------
 
     def add(self, from_state, to_state, action_name, handler=None, operations=(), condition=None):
-        #print 'from_state, to_state, action_name', repr((from_state, to_state, action_name))
         self._transitions.setdefault(from_state, {})
         if action_name in self._transitions[from_state]:
             old_to_state = self._transitions[from_state][action_name][0]
