@@ -12,7 +12,14 @@ from pycerberus.validators import EmailAddressValidator, IntegerValidator, Strin
 from pymta.compat import b64decode
 
 
-__all__ = ['HeloSchema', 'MailFromSchema', 'RcptToSchema', 'SMTPCommandArgumentsSchema']
+__all__ = [
+    'HeloSchema',
+    'AuthPlainSchema',
+    'AuthLoginSchema',
+    'MailFromSchema',
+    'RcptToSchema',
+    'SMTPCommandArgumentsSchema',
+]
 
 # ------------------------------------------------------------------------------
 # General infrastructure
@@ -168,3 +175,27 @@ class AuthPlainSchema(SMTPCommandArgumentsSchema):
             parameters[0] = None
         return parameters
 
+
+class AuthLoginSchema(SMTPCommandArgumentsSchema):
+    username = StringValidator(required=False, default=None)
+
+    parameter_order = ('username',)
+
+    def messages(self):
+        return {
+            'invalid_base64': _('Garbled data sent'),
+        }
+
+    def split_parameters(self, value, context):
+        parameters = super(AuthLoginSchema, self).split_parameters(value, context)
+        if (not parameters) or (parameters[0] is None):
+            return
+        username_b64, = parameters
+        username = self._decode_base64(username_b64, context=context)
+        return [username]
+
+    def _decode_base64(self, value, context):
+        try:
+            return b64decode(value)
+        except:
+            self.raise_error('invalid_base64', value, context)

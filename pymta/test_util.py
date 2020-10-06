@@ -17,9 +17,10 @@ import threading
 import time
 
 from pythonic_testcase import *
+from pycerberus.errors import InvalidDataError
 
 from .api import IAuthenticator, IMessageDeliverer, IMTAPolicy
-from .compat import queue
+from .compat import b64encode, queue
 from .mta import PythonMTA
 from .session import SMTPSession
 
@@ -172,6 +173,9 @@ class MockCommandParser(object):
     def new_message_received(self, msg):
         self.messages.append(msg)
 
+    def switch_to_auth_login_mode(self):
+        pass
+
     def switch_to_command_mode(self):
         pass
 
@@ -225,8 +229,44 @@ class CommandParserTestCase(PythonicTestCase):
         self.session.handle_input(command, data)
         assert_length(number_replies_before + 1, self.command_parser.replies)
         code, reply_text = self.command_parser.replies[-1]
-        self.check_reply_code(code, reply_text, expected_first_digit=expected_first_digit)
+        self.check_reply_code(code, reply_text, expected_first_digit=int(expected_first_digit))
         return (code, reply_text)
+
+    def last_reply(self):
+        return self.command_parser.replies[-1]
+
+    def send_auth_login(self, username_b64=None, password_b64=None, expect_username_error=False, reduce_roundtrips=True):
+        previous_replies = len(self.command_parser.replies)
+        expected_code = 334 if not expect_username_error else 501
+        if reduce_roundtrips:
+            self.send('AUTH LOGIN', username_b64, expected_first_digit=str(expected_code)[0])
+            nr_replies = 1
+        else:
+            self.send('AUTH LOGIN', expected_first_digit=3)
+            code, reply_text = self._handle_auth_credentials(username_b64)
+            assert_equals(334, code)
+            nr_replies = 2
+        if expect_username_error:
+            assert_length(previous_replies+nr_replies, self.command_parser.replies)
+            return self.last_reply()
+        assert_not_none(password_b64)
+
+        reply_text = self._check_last_code(expected_code)
+        assert_equals(b64encode('Password:'), reply_text)
+        self._handle_auth_credentials(password_b64)
+        assert_length(previous_replies+nr_replies+1, self.command_parser.replies)
+        return self.last_reply()
+
+    def _handle_auth_credentials(self, b64_data):
+        try:
+            # in production the (non-mock) CommandParser would call this method
+            # instead of "session.handle_input()"
+            self.session.handle_auth_credentials(b64_data)
+        except InvalidDataError as e:
+            # emulate code in ".handle_input()"
+            reply = (501, e.msg())
+            self.command_parser.replies.append(reply)
+        return self.last_reply()
 
     def close_connection(self):
         self.send('quit', expected_first_digit=2)

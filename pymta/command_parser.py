@@ -65,7 +65,7 @@ class SMTPCommandParser(object):
         self._maximum_message_size = None
 
     def _build_state_machine(self):
-        def _command_completed(from_state, to_state, smtp_command, instance):
+        def _command_completed(from_state, to_state, smtp_command):
             self.data = ''
 
         def _start_receiving_message(from_state, to_state, smtp_command):
@@ -77,9 +77,13 @@ class SMTPCommandParser(object):
             self.data = ''
 
         state = StateMachine(initial_state='commands')
-        state.add('commands', 'commands', 'COMMAND', _command_completed)
-        state.add('commands', 'data',     'DATA', _start_receiving_message)
-        state.add('data',     'commands', 'COMMAND', _finished_receiving_message)
+        state.add('commands', 'commands',   'COMMAND', _command_completed)
+        state.add('commands', 'auth_login', 'AUTH_LOGIN', _command_completed)
+        # switch back to command mode after AUTH LOGIN is completed
+        state.add('auth_login', 'commands', 'COMMAND', _command_completed)
+
+        state.add('commands', 'data',       'DATA', _start_receiving_message)
+        state.add('data',     'commands',   'COMMAND', _finished_receiving_message)
         return state
 
     @property
@@ -127,6 +131,11 @@ class SMTPCommandParser(object):
         before they are rejected."""
         self._maximum_message_size = max_size
 
+    def switch_to_auth_login_mode(self):
+        """Called from the SMTPSession when AUTH LOGIN was received and the
+        client should send username/password next."""
+        self.state.execute('AUTH_LOGIN')
+
     def switch_to_command_mode(self):
         """Called from the SMTPSession when a message was received and the
         client is expected to send single commands again."""
@@ -145,11 +154,19 @@ class SMTPCommandParser(object):
         return re.sub('\r\n', '\n', data_without_transparency_dots)
 
     def is_in_command_mode(self):
-        assert self.state.state() in ('commands', 'data')
-        return self.state.state() == 'commands'
+        state = self.state.state()
+        assert state in ('commands', 'data', 'auth_login')
+        return (state == 'commands')
 
     def is_in_data_mode(self):
-        return not self.is_in_command_mode()
+        state = self.state.state()
+        assert state in ('commands', 'data', 'auth_login')
+        return (state == 'data')
+
+    def is_in_auth_login_mode(self):
+        state = self.state.state()
+        assert state in ('commands', 'data', 'auth_login')
+        return (state == 'auth_login')
 
     def process_new_data(self, data):
         self.data += data
@@ -167,6 +184,10 @@ class SMTPCommandParser(object):
         if self.is_in_command_mode():
             command, parameter = self._parser.parse(input_data_without_terminator)
             self.session.handle_input(command, parameter)
+            self.data = ''
+        elif self.is_in_auth_login_mode():
+            parameter = input_data_without_terminator
+            self.session.handle_auth_credentials(parameter)
             self.data = ''
         else:
             msg_data = self._remove_leading_dots_for_smtp_transparency_support(input_data_without_terminator)

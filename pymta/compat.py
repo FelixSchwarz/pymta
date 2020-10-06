@@ -21,14 +21,14 @@ if sys.version_info < (3, 0):
     binary = bytes = str
     unicode = unicode
     range = xrange
-    b64encode = lambda x: str(x).encode('base64')
+    b64encode = lambda x: str(x).encode('base64').strip()
     b64decode = lambda x: str(x).decode('base64')
 else:
     basestring = str
     binary = bytes = b = bytes
     unicode = str
     range = range
-    b64encode = lambda x: base64.b64encode(b(x)).decode('ascii')
+    b64encode = lambda x: base64.b64encode(b(x)).decode('ascii').strip()
     b64decode = lambda x: base64.b64decode(b(x)).decode('ascii')
 
 

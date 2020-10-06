@@ -3,14 +3,14 @@
 
 from __future__ import print_function, unicode_literals
 
-import smtplib
 import socket
+import smtplib
 import time
 
 from pythonic_testcase import *
 
 from pymta.api import IMTAPolicy
-from pymta.compat import b
+from pymta.compat import b, b64encode
 from pymta.test_util import DebuggingMTA, DummyAuthenticator, SMTPTestCase
 
 
@@ -90,6 +90,20 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.quit()
         msg = self._check_received_mail([recipient])
         assert_equals('admin', msg.username)
+
+    def test_send_email_with_auth_login(self):
+        """Check that we can send an email with using AUTH LOGIN."""
+        self.connection.ehlo()
+        login_response = self.connection.docmd('AUTH', 'LOGIN %s' % b64encode('foo'))
+        assert_equals((334, b(b64encode('Password:'))), login_response)
+        password_response = self.connection.docmd(b64encode('foo'))
+        assert_equals((235, b('Authentication successful')), password_response)
+
+        recipient = 'to@example.com'
+        self.connection.sendmail('from@example.com', recipient, rfc822_msg)
+        self.connection.quit()
+        msg = self._check_received_mail([recipient])
+        assert_equals('foo', msg.username)
 
     def test_send_multiple_emails_in_one_connection(self):
         """Check that we can send multiple emails in the same connection (and

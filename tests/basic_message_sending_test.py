@@ -16,6 +16,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
     def _check_last_code(self, expected_code):
         code, reply_text = self.command_parser.replies[-1]
         assert_equals(expected_code, code)
+        return reply_text
 
     def test_new_connection(self):
         assert_length(1, self.command_parser.replies)
@@ -190,6 +191,50 @@ class BasicMessageSendingTest(CommandParserTestCase):
         assert_length(3, self.command_parser.replies)
         self._check_last_code(501)
 
+    def test_auth_login_with_username_and_password_is_accepted(self):
+        self.session._authenticator = DummyAuthenticator()
+
+        self.send('EHLO', 'foo.example.com')
+        self.send_auth_login(username='foo', password='foo')
+        response = self.command_parser.replies[-1]
+        assert_equals((235, 'Authentication successful'), response)
+
+    def test_auth_login_3step(self):
+        self.session._authenticator = DummyAuthenticator()
+
+        self.send('EHLO', 'foo.example.com')
+        self.send_auth_login(username='foo', password='foo', reduce_roundtrips=False)
+        response = self.command_parser.replies[-1]
+        assert_equals((235, 'Authentication successful'), response)
+
+    def test_auth_login_with_bad_credentials_is_rejected(self):
+        self.session._authenticator = DummyAuthenticator()
+
+        self.send('EHLO', 'foo.example.com')
+        self.send_auth_login(username='foo', password='invalid')
+        self._check_last_code(535)
+
+    def test_auth_login_with_bad_base64_username_is_rejected(self):
+        self.session._authenticator = DummyAuthenticator()
+
+        self.send('EHLO', 'foo.example.com')
+        self.send_auth_login(username_b64='foo', password='foo')
+        self._check_last_code(501)
+
+    def test_auth_login_with_bad_base64_password_is_rejected(self):
+        self.session._authenticator = DummyAuthenticator()
+
+        self.send('EHLO', 'foo.example.com')
+        self.send_auth_login(username='foo', password_b64='foo')
+        self._check_last_code(501)
+
+        # state machine should switch back to normal command mode
+        code, reply_text = self._handle_auth_credentials('foo')
+        assert_equals(501, code,
+            message='need to retart AUTH LOGIN, not just send password again')
+        self.send_auth_login(username='foo', password='foo')
+        assert_equals((235, 'Authentication successful'), self.last_reply())
+
     def test_size_restrictions_are_announced_in_ehlo_reply(self):
         class RestrictedSizePolicy(IMTAPolicy):
             def max_message_size(self, peer):
@@ -225,4 +270,21 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('EHLO', 'foo.example.com')
         self._send_mail('Subject: First Message\n\nJust testing...\n')
         self.send('MAIL FROM', '<foo@example.com>   size=106530  ')
+
+    def send_auth_login(self, username=None, username_b64=None, password=None, password_b64=None, **kwargs):
+        assert (username is not None) ^ (username_b64 is not None)
+        if username_b64 is None:
+            username_b64 = b64encode(username)
+            expect_username_error = False
+        else:
+            expect_username_error = True
+        assert (password is not None) ^ (password_b64 is not None)
+        if password_b64 is None:
+            password_b64 = b64encode(password)
+        return super(BasicMessageSendingTest, self).send_auth_login(
+            username_b64 = username_b64,
+            password_b64 = password_b64,
+            expect_username_error = expect_username_error,
+            **kwargs
+        )
 

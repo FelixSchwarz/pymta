@@ -20,6 +20,7 @@ class Message(object):
         self.smtp_to = smtp_to
         self.msg_data = msg_data
         self.username = username
+        self.unvalidated_input = {}
 
 
 

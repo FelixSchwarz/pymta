@@ -2,6 +2,9 @@
 Changelog for pymta
 ===================
 
+0.7.0 (unreleased)
+- support AUTH LOGIN
+
 0.6.0 (2018-10-11)
 - pymta now also supports Python 3 (contributed by Alex Grönholm)
 - require pycerberus >= 0.5 to simplify some validation code

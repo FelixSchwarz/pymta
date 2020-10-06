@@ -127,14 +127,21 @@ class IMTAPolicy(object):
         can always reject a message using accept_msgdata()."""
         return None
 
+    def auth_methods(self, peer):
+        return ('PLAIN', 'LOGIN')
+
     def ehlo_lines(self, peer):
         """Return an iterable for SMTP extensions to advertise after EHLO.
         By default support for SMTP SIZE extension will be announced if you set
         a max message size."""
+        lines = []
         max_size = self.max_message_size(peer)
         if max_size is not None:
-            return ('SIZE %d' % max_size,)
-        return ()
+            lines.append('SIZE %d' % max_size)
+        auth_methods_str = ' '.join(self.auth_methods(peer))
+        if auth_methods_str:
+            lines.append('AUTH ' + auth_methods_str)
+        return tuple(lines)
 
     def accept_helo(self, helo_string, message):
         """Decides if the HELO command with the given helo_name should be
@@ -153,7 +160,16 @@ class IMTAPolicy(object):
 
         The method must not return a response by itself in case it accepts the
         AUTH PLAIN command!"""
-        return True
+        return ('PLAIN' in self.auth_methods(message.peer))
+
+    def accept_auth_login(self, username, message):
+        """Decides if AUTH LOGIN should be allowed for this client. Please note
+        that username and password are not verified before, the authenticator
+        will check them after the policy allowed this command.
+
+        The method must not return a response by itself in case it accepts the
+        AUTH LOGIN command!"""
+        return ('LOGIN' in self.auth_methods(message.peer))
 
     def accept_from(self, sender, message):
         "Decides if the sender of this message (MAIL FROM) should be accepted."

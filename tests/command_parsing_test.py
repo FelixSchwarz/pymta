@@ -7,19 +7,24 @@ from pythonic_testcase import *
 
 from pymta.api import IMTAPolicy
 from pymta.command_parser import SMTPCommandParser
-from pymta.compat import basestring
-from pymta.test_util import BlackholeDeliverer, MockChannel
+from pymta.compat import basestring, b64encode
+from pymta.test_util import BlackholeDeliverer, DummyAuthenticator, MockChannel
 
 
 class CommandParsingTest(PythonicTestCase):
 
     def setUp(self):
         self.deliverer = BlackholeDeliverer()
-        self.init_command_parser()
+        self.parser = self.init_command_parser()
 
-    def init_command_parser(self, policy=None):
-        self.parser = SMTPCommandParser(MockChannel(), '127.0.0.1', 12345,
-                                        self.deliverer, policy=policy)
+    def init_command_parser(self, policy=None, authenticator=None):
+        return SMTPCommandParser(
+            MockChannel(),
+            '127.0.0.1', 12345,
+            deliverer     = self.deliverer,
+            policy        = policy,
+            authenticator = authenticator,
+        )
 
     def parse_command(self, input):
         return self.parser._parser.parse(input)
@@ -54,6 +59,13 @@ class CommandParsingTest(PythonicTestCase):
     def test_parse_auth_plain(self):
         assert_equals(('AUTH PLAIN', 'AGZvbwBiYXI='),
                       self.parse_command('AUTH PLAIN AGZvbwBiYXI='))
+
+    def test_parse_auth_login_with_username(self):
+        self.parser = self.init_command_parser(authenticator=DummyAuthenticator())
+        self.send('EHLO foo\r\n')
+        self.send('AUTH LOGIN %s\r\n' % b64encode('foo'))
+        self.send('%s\r\n' % b64encode('secret'))
+        self.send('MAIL FROM: foo@example.com\r\n')
 
     def send(self, value):
         if isinstance(value, basestring):
@@ -118,7 +130,7 @@ class CommandParsingTest(PythonicTestCase):
         class RestrictedSizePolicy(IMTAPolicy):
             def max_message_size(self, peer):
                 return 100
-        self.init_command_parser(RestrictedSizePolicy())
+        self.parser = self.init_command_parser(RestrictedSizePolicy())
 
         self._send_helo_mail_from_and_rcpt_to()
         self.send(['DATA\r\n'])

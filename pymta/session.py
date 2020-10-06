@@ -7,12 +7,11 @@ import sys
 
 from pycerberus import InvalidDataError
 
-from pymta.compat import basestring
+from pymta.compat import basestring, b64encode
 from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
 from pymta.statemachine import StateMachine, StateMachineError
-from pymta.validation import AuthPlainSchema, HeloSchema, MailFromSchema, \
-    RcptToSchema, SMTPCommandArgumentsSchema
+from .validation import *
 
 
 __all__ = ['SMTPSession']
@@ -117,6 +116,8 @@ class SMTPSession(object):
         self._add_state('initialized',     'MAIL FROM',  'sender_known')
 
         self._add_state('initialized',     'AUTH PLAIN', 'authenticated', condition='if_esmtp')
+        self._add_state('initialized',     'AUTH LOGIN', 'authenticated', condition='if_esmtp')
+        self._add_state('authenticated',   'AUTH LOGIN', 'authenticated')
         self._add_state('authenticated',   'MAIL FROM',  'sender_known')
         # ----
 
@@ -134,12 +135,11 @@ class SMTPSession(object):
     def get_ehlo_lines(self):
         """Return the capabilities to be advertised after EHLO."""
         lines = []
-        if self._authenticator != None:
-            # TODO: Make the authentication pluggable but separate mechanism
-            # from user look-up.
-            lines.append('AUTH PLAIN')
         if self._policy is not None:
             lines.extend(self._policy.ehlo_lines(self._message.peer))
+        elif self._authenticator is not None:
+            # fallback to ease testing in case no policy was specified explicitely
+            lines.append('AUTH PLAIN')
         lines.append('HELP')
         return lines
 
@@ -368,10 +368,11 @@ class SMTPSession(object):
         self._process_helo_or_ehlo('accept_ehlo', self._reply_to_ehlo)
 
     def _check_password(self, username, password):
-        decision, response_sent = self.is_allowed('accept_auth_plain', username, password, self._message)
-        if not decision:
-            raise PolicyDenial(response_sent)
-        assert response_sent == False
+        if self._authenticator is None:
+            code = 535
+            reply_text = 'AUTH not available'
+            self.reply(code, reply_text)
+            raise InvalidParametersError(response_sent=True, code=code, reply_text=reply_text)
         credentials_correct = \
             self._authenticator.authenticate(username, password, self._message.peer)
         if credentials_correct:
@@ -385,7 +386,46 @@ class SMTPSession(object):
             self.reply(535, 'AUTH not available')
             raise InvalidParametersError(response_sent=True)
         validated_data = self.validate(AuthPlainSchema)
-        self._check_password(validated_data['username'], validated_data['password'])
+        username = validated_data['username']
+        password = validated_data['password']
+
+        decision, response_sent = self.is_allowed('accept_auth_plain', username, password, self._message)
+        if not decision:
+            raise PolicyDenial(response_sent)
+        elif not response_sent:
+            self._check_password(username, password)
+
+    def smtp_auth_login(self):
+        validated_data = self.validate(AuthLoginSchema) if self.arguments() else {}
+        username = validated_data.get('username')
+        decision, response_sent = self.is_allowed('accept_auth_login', username, self._message)
+        if not decision:
+            raise PolicyDenial(response_sent)
+        elif not response_sent:
+            if not username:
+                next_ = 'Username:'
+            else:
+                self._message.unvalidated_input['username'] = username
+                next_ = 'Password:'
+            self._command_parser.switch_to_auth_login_mode()
+            self.reply(334, b64encode(next_))
+
+    def handle_auth_credentials(self, input_):
+        # necessary so "self.validate()" works, usually done via ".handle_input()"
+        self._command_arguments = input_
+        validated_parameters = self.validate(AuthLoginSchema)
+        decoded_input = validated_parameters['username']
+
+        username = self._message.unvalidated_input.get('username')
+        if username is None:
+            self._message.unvalidated_input['username'] = decoded_input
+            next_ = 'Password:'
+            self.reply(334, b64encode(next_))
+        else:
+            password = decoded_input
+            del self._message.unvalidated_input['username']
+            self._command_parser.switch_to_command_mode()
+            self._check_password(username, password)
 
     def _check_size_restriction(self, extensions):
         announced_size = extensions.get('size')
