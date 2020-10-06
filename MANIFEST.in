@@ -1,4 +1,4 @@
-include COPYING.txt LICENSE.txt VERSION.txt README.md
+include COPYING.txt VERSION.txt README.md
 include requirements.txt dev_requirements.txt
 recursive-include docs *
 recursive-include appveyor *
