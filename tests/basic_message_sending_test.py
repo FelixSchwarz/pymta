@@ -14,14 +14,14 @@ from pymta.test_util import CommandParserTestCase, DummyAuthenticator
 class BasicMessageSendingTest(CommandParserTestCase):
 
     def _check_last_code(self, expected_code):
-        code, reply_text = self.command_parser.replies[-1]
+        code, reply_text = self.last_reply()
         assert_equals(expected_code, code)
         return reply_text
 
     def test_new_connection(self):
         assert_length(1, self.command_parser.replies)
         self._check_last_code(220)
-        code, reply_text = self.command_parser.replies[-1]
+        code, reply_text = self.last_reply()
         assert_equals('localhost Hello 127.0.0.1', reply_text)
         self.close_connection()
 
@@ -33,7 +33,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('helo', 'foo.example.com')
         assert_length(2, self.command_parser.replies)
         self._check_last_code(250)
-        code, reply_text = self.command_parser.replies[-1]
+        code, reply_text = self.last_reply()
         assert_equals('localhost', reply_text)
         self.close_connection()
 
@@ -70,7 +70,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.session.handle_input('invalid')
         assert_length(2, self.command_parser.replies)
         self._check_last_code(500)
-        code, reply_text = self.command_parser.replies[-1]
+        code, reply_text = self.last_reply()
         assert_equals('unrecognized command "invalid"', reply_text)
         self.close_connection()
 
@@ -114,7 +114,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
     def test_send_ehlo_without_authenticator(self):
         self.send('EHLO', 'foo.example.com')
         assert_length(2, self.command_parser.replies)
-        code, reply_text = self.command_parser.replies[-1]
+        code, reply_text = self.last_reply()
         assert_equals(250, code)
         assert_equals(set(('localhost', 'HELP')), set(reply_text))
 
@@ -139,7 +139,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.session._authenticator = DummyAuthenticator()
 
         self.send('EHLO', 'foo.example.com')
-        code, reply_texts = self.command_parser.replies[-1]
+        code, reply_texts = self.last_reply()
         assert_contains('AUTH PLAIN', reply_texts)
 
     def test_auth_plain_with_username_and_password_is_accepted(self):
@@ -149,7 +149,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('AUTH PLAIN', b64encode('\x00foo\x00foo'))
         assert_length(3, self.command_parser.replies)
         self._check_last_code(235)
-        code, reply_text = self.command_parser.replies[-1]
+        code, reply_text = self.last_reply()
         assert_equals('Authentication successful', reply_text)
 
     def test_auth_plain_with_authzid_username_and_password_is_accepted(self):
@@ -163,7 +163,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('AUTH PLAIN', b64encode('ignored\x00foo\x00foo'))
         assert_length(3, self.command_parser.replies)
         self._check_last_code(235)
-        code, reply_text = self.command_parser.replies[-1]
+        code, reply_text = self.last_reply()
         assert_equals('Authentication successful', reply_text)
 
     def test_auth_plain_with_bad_credentials_is_rejected(self):
@@ -196,16 +196,14 @@ class BasicMessageSendingTest(CommandParserTestCase):
 
         self.send('EHLO', 'foo.example.com')
         self.send_auth_login(username='foo', password='foo')
-        response = self.command_parser.replies[-1]
-        assert_equals((235, 'Authentication successful'), response)
+        assert_equals((235, 'Authentication successful'), self.last_reply())
 
     def test_auth_login_3step(self):
         self.session._authenticator = DummyAuthenticator()
 
         self.send('EHLO', 'foo.example.com')
         self.send_auth_login(username='foo', password='foo', reduce_roundtrips=False)
-        response = self.command_parser.replies[-1]
-        assert_equals((235, 'Authentication successful'), response)
+        assert_equals((235, 'Authentication successful'), self.last_reply())
 
     def test_auth_login_with_bad_credentials_is_rejected(self):
         self.session._authenticator = DummyAuthenticator()
@@ -242,7 +240,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.session._policy = RestrictedSizePolicy()
 
         self.send('EHLO', 'foo.example.com')
-        code, reply_texts = self.command_parser.replies[-1]
+        code, reply_texts = self.last_reply()
         assert_contains('SIZE 100', reply_texts)
 
     def test_early_rejection_if_size_verb_indicates_big_message(self):
@@ -262,7 +260,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         self.send('HELO', 'foo.example.com')
         self.send('MAIL FROM', '<foo@example.com>   size=106530  ',
                   expected_first_digit=5)
-        code, reply_text = self.command_parser.replies[-1]
+        code, reply_text = self.last_reply()
         assert_equals(501, code)
         assert_equals('No SMTP extensions allowed for plain SMTP.', reply_text)
 
