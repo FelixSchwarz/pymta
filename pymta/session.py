@@ -91,10 +91,8 @@ class SMTPSession(object):
 
     def _add_rset_transitions(self):
         for state_name in self.state.known_non_final_states():
-            if state_name == 'new':
-                self._add_state(state_name, 'RSET',  state_name)
-            else:
-                self._add_state(state_name, 'RSET',  'initialized')
+            target_state = 'initialized' if (state_name != 'new') else 'new'
+            self._add_state(state_name, 'RSET', target_state)
 
     def _add_help_noop_and_quit_transitions(self):
         """HELP, NOOP and QUIT should be possible from everywhere so we
