@@ -232,38 +232,41 @@ class SMTPSession(object):
         """
         self._command_arguments = data
         self.please_close_connection_after_response(False)
-        # SMTP commands must be treated as case-insensitive
-        command = smtp_command.upper()
         try:
-            try:
-                self.state.execute(command)
-            except StateMachineError:
-                if command not in self.valid_commands:
-                    self.reply(500, 'unrecognized command "%s"' % smtp_command)
-                else:
-                    msg = 'Command "%s" is not allowed here' % smtp_command
-                    allowed_transitions = self.state.allowed_actions()
-                    if len(allowed_transitions) > 0:
-                        msg += ', expected on of %s' % allowed_transitions
-                        self.reply(503, msg)
-            except InvalidDataError:
-                e = sys.exc_info()[1]
-                self.reply(501, e.msg())
-            except InvalidParametersError:
-                # TODO: Get rid of InvalidParametersError, shouldn't be
-                # necessary anymore
-                e = sys.exc_info()[1]
-                if not e.response_sent:
-                    msg = 'Syntactically invalid %s argument(s)' % smtp_command
-                    self.reply(501, msg)
-            except PolicyDenial:
-                e = sys.exc_info()[1]
-                if not e.response_sent:
-                    self.reply(e.code, e.reply_text)
+            self._handle_command(smtp_command)
         finally:
             if self.should_close_connection_after_response():
                 self.close_connection()
             self._command_arguments = None
+
+    def _handle_command(self, smtp_command):
+        # SMTP commands must be treated as case-insensitive
+        command = smtp_command.upper()
+        try:
+            self.state.execute(command)
+        except StateMachineError:
+            if command not in self.valid_commands:
+                self.reply(500, 'unrecognized command "%s"' % smtp_command)
+            else:
+                msg = 'Command "%s" is not allowed here' % smtp_command
+                allowed_transitions = self.state.allowed_actions()
+                if len(allowed_transitions) > 0:
+                    msg += ', expected on of %s' % allowed_transitions
+                    self.reply(503, msg)
+        except InvalidDataError:
+            e = sys.exc_info()[1]
+            self.reply(501, e.msg())
+        except InvalidParametersError:
+            # TODO: Get rid of InvalidParametersError, shouldn't be
+            # necessary anymore
+            e = sys.exc_info()[1]
+            if not e.response_sent:
+                msg = 'Syntactically invalid %s argument(s)' % smtp_command
+                self.reply(501, msg)
+        except PolicyDenial:
+            e = sys.exc_info()[1]
+            if not e.response_sent:
+                self.reply(e.code, e.reply_text)
 
     def input_exceeds_limits(self):
         """Called when the client sent a message that exceeded the maximum
