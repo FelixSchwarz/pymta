@@ -2,7 +2,7 @@
 Changelog for pymta
 ===================
 
-0.7.0 (unreleased)
+0.7.0 (2020-10-06)
 - support AUTH LOGIN
 
 0.6.0 (2018-10-11)
