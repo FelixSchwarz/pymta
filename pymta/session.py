@@ -45,6 +45,8 @@ class SMTPSession(object):
         self._is_connected = True
         self._message = None
 
+        self.state = None
+        self.valid_commands = None
         self._build_state_machine()
 
     # -------------------------------------------------------------------------

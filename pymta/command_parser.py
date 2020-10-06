@@ -55,7 +55,7 @@ class SMTPCommandParser(object):
 
         self.data = ''
         self.terminator = self.LINE_TERMINATOR
-        self._build_state_machine()
+        self.state = self._build_state_machine()
 
         self.session = SMTPSession(command_parser=self, deliverer=deliverer,
                                    policy=policy, authenticator=authenticator)
@@ -76,10 +76,11 @@ class SMTPCommandParser(object):
             self.terminator = self.LINE_TERMINATOR
             self.data = ''
 
-        self.state = StateMachine(initial_state='commands')
-        self.state.add('commands', 'commands', 'COMMAND', _command_completed)
-        self.state.add('commands', 'data',     'DATA', _start_receiving_message)
-        self.state.add('data',     'commands', 'COMMAND', _finished_receiving_message)
+        state = StateMachine(initial_state='commands')
+        state.add('commands', 'commands', 'COMMAND', _command_completed)
+        state.add('commands', 'data',     'DATA', _start_receiving_message)
+        state.add('data',     'commands', 'COMMAND', _finished_receiving_message)
+        return state
 
     @property
     def primary_hostname(self):
