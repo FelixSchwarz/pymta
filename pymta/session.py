@@ -138,7 +138,7 @@ class SMTPSession(object):
             # TODO: Make the authentication pluggable but separate mechanism
             # from user look-up.
             lines.append('AUTH PLAIN')
-        if self._policy != None:
+        if self._policy is not None:
             lines.extend(self._policy.ehlo_lines(self._message.peer))
         lines.append('HELP')
         return lines

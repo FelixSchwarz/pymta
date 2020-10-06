@@ -132,7 +132,7 @@ class IMTAPolicy(object):
         By default support for SMTP SIZE extension will be announced if you set
         a max message size."""
         max_size = self.max_message_size(peer)
-        if max_size != None:
+        if max_size is not None:
             return ('SIZE %d' % max_size,)
         return ()
 
