@@ -165,7 +165,7 @@ class BasicMessageSendingTest(CommandParserTestCase):
         code, reply_text = self.command_parser.replies[-1]
         assert_equals('Authentication successful', reply_text)
 
-    def test_auth_plain_with_bad_credentials_is_accepted(self):
+    def test_auth_plain_with_bad_credentials_is_rejected(self):
         self.session._authenticator = DummyAuthenticator()
 
         self.send('EHLO', 'foo.example.com')
