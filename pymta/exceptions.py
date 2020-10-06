@@ -17,7 +17,7 @@ class SMTPViolationError(PyMTAException):
                  reply_text='Administrative Prohibition', message=None):
         if message is None:
             message = '%s %s' % (code, reply_text)
-        PyMTAException.__init__(self, message)
+        super(SMTPViolationError, self).__init__(message)
         self.response_sent = response_sent
         self.code = code
         self.reply_text = reply_text
@@ -27,8 +27,7 @@ class InvalidParametersError(SMTPViolationError):
     """The SMTP client provided invalid parameters for a SMTP command."""
 
     def __init__(self, parameter=None, *args, **kwargs):
-        # In Python 2.3 Exception is an old-style classes so we can not use super
-        SMTPViolationError.__init__(self, *args, **kwargs)
+        super(InvalidParametersError, self).__init__(*args, **kwargs)
         self.parameter = parameter
 
 

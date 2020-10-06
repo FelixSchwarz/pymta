@@ -47,7 +47,7 @@ class DebuggingMTA(PythonMTA):
     collects all incoming messages so that you can examine then afterwards."""
 
     def __init__(self, *args, **kwargs):
-        PythonMTA.__init__(self, *args, **kwargs)
+        super(DebuggingMTA, self).__init__(*args, **kwargs)
         self.queue = queue.Queue()
 
     def serve_forever(self):
