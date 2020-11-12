@@ -78,7 +78,9 @@ class MTAThread(threading.Thread):
         warning message is printed."""
         self.server.shutdown_server()
         threading.Thread.join(self, timeout=timeout_seconds)
-        if self.isAlive():
+        # Python 2 compat
+        is_alive = self.is_alive() if hasattr(self, 'is_alive') else self.isAlive()
+        if is_alive:
             print("WARNING: Thread still alive. Timeout while waiting for termination!")
 
 
