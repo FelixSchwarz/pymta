@@ -7,7 +7,7 @@ import socket
 import smtplib
 import time
 
-from pythonic_testcase import *
+import pytest
 
 from pymta.api import IMTAPolicy
 from pymta.compat import b, b64encode
@@ -42,28 +42,28 @@ class BasicSMTPTest(SMTPTestCase):
 
     def test_helo(self):
         code, replytext = self.connection.helo('foo')
-        assert_equals(250, code)
+        assert code == 250
 
     def _check_received_mail(self, expected_recipients, expected_helo=None):
         queue = self.get_received_messages()
-        assert_equals(1, queue.qsize())
+        assert queue.qsize() == 1
         msg = queue.get()
         if expected_helo is not None:
-            assert_equals('foo', msg.smtp_helo)
-        assert_equals('from@example.com', msg.smtp_from)
-        assert_equals(expected_recipients, msg.smtp_to)
-        assert_equals(rfc822_msg, msg.msg_data)
+            assert msg.smtp_helo == 'foo'
+        assert msg.smtp_from == 'from@example.com'
+        assert msg.smtp_to == expected_recipients
+        assert msg.msg_data == rfc822_msg
         return msg
 
     def test_send_simple_email(self):
         code, replytext = self.connection.helo('foo')
-        assert_equals(250, code)
+        assert code == 250
         code, replytext = self.connection.mail('from@example.com')
-        assert_equals(250, code)
+        assert code == 250
         code, replytext = self.connection.rcpt('to@example.com')
-        assert_equals(250, code)
+        assert code == 250
         code, replytext = self.connection.data(rfc822_msg)
-        assert_equals(250, code)
+        assert code == 250
         self.connection.quit()
         self._check_received_mail(['to@example.com'], expected_helo='foo')
 
@@ -89,21 +89,21 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.sendmail('from@example.com', recipient, rfc822_msg)
         self.connection.quit()
         msg = self._check_received_mail([recipient])
-        assert_equals('admin', msg.username)
+        assert msg.username == 'admin'
 
     def test_send_email_with_auth_login(self):
         """Check that we can send an email with using AUTH LOGIN."""
         self.connection.ehlo()
         login_response = self.connection.docmd('AUTH', 'LOGIN %s' % b64encode('foo'))
-        assert_equals((334, b(b64encode('Password:'))), login_response)
+        assert login_response == (334, b(b64encode('Password:')))
         password_response = self.connection.docmd(b64encode('foo'))
-        assert_equals((235, b('Authentication successful')), password_response)
+        assert password_response == (235, b('Authentication successful'))
 
         recipient = 'to@example.com'
         self.connection.sendmail('from@example.com', recipient, rfc822_msg)
         self.connection.quit()
         msg = self._check_received_mail([recipient])
-        assert_equals('foo', msg.username)
+        assert msg.username == 'foo'
 
     def test_send_multiple_emails_in_one_connection(self):
         """Check that we can send multiple emails in the same connection (and
@@ -114,14 +114,14 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.sendmail('x@example.com', 'bar@example.com', rfc822_msg)
 
         queue = self.get_received_messages()
-        assert_equals(2, queue.qsize())
+        assert queue.qsize() == 2
         first_msg = queue.get()
-        assert_not_none(first_msg.smtp_helo)
-        assert_equals('x@example.com', first_msg.smtp_from)
+        assert first_msg.smtp_helo is not None
+        assert first_msg.smtp_from == 'x@example.com'
 
         second_msg = queue.get()
-        assert_equals(first_msg.smtp_helo, second_msg.smtp_helo)
-        assert_equals(first_msg.username, second_msg.username)
+        assert second_msg.smtp_helo == first_msg.smtp_helo
+        assert second_msg.username == first_msg.username
 
     def test_transparency_support_enabled(self):
         """Check that there is transparency support for lines starting with a
@@ -131,9 +131,9 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.quit()
 
         queue = self.get_received_messages()
-        assert_equals(1, queue.qsize())
+        assert queue.qsize() == 1
         received_msg = queue.get()
-        assert_equals(msg, received_msg.msg_data)
+        assert received_msg.msg_data == msg
 
     def test_big_messages_are_rejected(self):
         """Check that messages which exceed the configured maximum message size
@@ -156,11 +156,12 @@ class BasicSMTPTest(SMTPTestCase):
         # Unfortunately Python's smtplib raises SMTPSenderRefused even if the
         # message was rejected due to size restrictions after issuing MAIL FROM
         # with size verb
-        with assert_raises((smtplib.SMTPDataError, smtplib.SMTPSenderRefused)) as exc_state:
+        with pytest.raises((smtplib.SMTPDataError, smtplib.SMTPSenderRefused)) as exc_info:
             self.connection.sendmail('from@example.com', 'foo@example.com', msg)
-        e = exc_state.caught_exception
-        assert_equals(552, e.smtp_code)
-        assert_equals(b('message exceeds fixed maximum message size'), e.smtp_error)
+
+        e = exc_info.value
+        assert e.smtp_code == 552
+        assert e.smtp_error == b('message exceeds fixed maximum message size')
 
     def service_is_available(self):
         # On a normal system we should be able to reconnect after a dropped
@@ -186,7 +187,7 @@ class BasicSMTPTest(SMTPTestCase):
         # In 0.3 the WorkerProcess would hang and start to eat up the whole CPU
         # so we need to set a sensible timeout so that this test will fail with
         # an appropriate exception.
-        assert_true(self.service_is_available())
+        assert self.service_is_available()
 
     def test_workerprocess_detects_closed_connections_when_writing(self):
         """Check that the WorkerProcess gracefully handles connections which are
@@ -210,4 +211,4 @@ class BasicSMTPTest(SMTPTestCase):
         self.connection.close()
 
         time.sleep(0.5)
-        assert_true(self.service_is_available())
+        assert self.service_is_available()

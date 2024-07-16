@@ -3,8 +3,6 @@
 
 from __future__ import print_function, unicode_literals
 
-from pythonic_testcase import *
-
 from pymta.compat import b64encode
 from pymta.test_util import CommandParserTestCase, DummyAuthenticator
 
@@ -74,7 +72,7 @@ class SMTPParameterValidationTest(CommandParserTestCase):
         self.helo()
 
         self.send_invalid('mail from', '<foo@example.com> SIZE=100')
-        assert_equals('No SMTP extensions allowed for plain SMTP.', self.last_server_message())
+        assert self.last_server_message() == 'No SMTP extensions allowed for plain SMTP.'
 
     def ehlo(self):
         self.send_valid('ehlo', 'fnord')
@@ -88,7 +86,7 @@ class SMTPParameterValidationTest(CommandParserTestCase):
         self.send_valid('ehlo', 'fnord')
 
         self.send_invalid('mail from', '<foo@example.com> FNORD=INVALID')
-        assert_equals('Invalid extension: "FNORD=INVALID"', self.last_server_message())
+        assert self.last_server_message() == 'Invalid extension: "FNORD=INVALID"'
 
     def helo_and_mail_from(self):
         self.helo()

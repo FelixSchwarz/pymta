@@ -3,8 +3,6 @@
 
 from __future__ import print_function, unicode_literals
 
-from pythonic_testcase import *
-
 from pymta.api import IMTAPolicy, PolicyDecision
 from pymta.compat import b64encode
 from pymta.test_util import CommandParserTestCase, DummyAuthenticator
@@ -19,11 +17,11 @@ class BasicPolicyTest(CommandParserTestCase):
             def accept_new_connection(self, peer):
                 return False
         self.init(policy=FalsePolicy())
-        assert_false(self.command_parser.open)
-        assert_length(1, self.command_parser.replies)
+        assert not self.command_parser.open
+        assert len(self.command_parser.replies) == 1
         code, reply_text = self.command_parser.replies[-1]
-        assert_equals(554, code)
-        assert_equals('SMTP service not available', reply_text)
+        assert code == 554
+        assert reply_text == 'SMTP service not available'
 
 
     def test_helo_can_be_rejected(self):
@@ -118,8 +116,8 @@ class BasicPolicyTest(CommandParserTestCase):
         rfc822_msg = 'Subject: Test\n\nJust testing...\n' + big_data_chunk
         (code, reply_text) = self.send('MSGDATA', rfc822_msg,
                                        expected_first_digit=5)
-        assert_equals(552, code)
-        assert_equals('message exceeds fixed maximum message size', reply_text)
+        assert code == 552
+        assert reply_text == 'message exceeds fixed maximum message size'
 
     def test_server_deals_gracefully_with_double_close_because_of_faulty_policy(self):
         class DoubleCloseConnectionPolicy(IMTAPolicy):
@@ -132,6 +130,6 @@ class BasicPolicyTest(CommandParserTestCase):
 
         number_replies_before = len(self.command_parser.replies)
         self.session.handle_input('HELO', 'foo.example.com')
-        assert_length(number_replies_before, self.command_parser.replies)
-        assert_false(self.command_parser.open)
+        assert len(self.command_parser.replies) == number_replies_before
+        assert not self.command_parser.open
 

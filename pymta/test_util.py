@@ -15,8 +15,8 @@ import random
 import socket
 import threading
 import time
+from unittest import TestCase
 
-from pythonic_testcase import *
 from pycerberus.errors import InvalidDataError
 
 from .api import IAuthenticator, IMessageDeliverer, IMTAPolicy
@@ -84,7 +84,7 @@ class MTAThread(threading.Thread):
             print("WARNING: Thread still alive. Timeout while waiting for termination!")
 
 
-class SMTPTestCase(PythonicTestCase):
+class SMTPTestCase(TestCase):
     """The SMTPTestCase is a unittest.TestCase and provides you with a running
     MTA listening on 'localhost:[8000-40000]' which you can use in your
     tests. No messages will be delivered to the outside world because the MTA
@@ -201,7 +201,7 @@ class DummyAuthenticator(IAuthenticator):
         return username == password
 
 
-class CommandParserTestCase(PythonicTestCase):
+class CommandParserTestCase(TestCase):
 
     def setUp(self, policy=None):
         super(CommandParserTestCase, self).setUp()
@@ -224,12 +224,12 @@ class CommandParserTestCase(PythonicTestCase):
         first_code_digit = int(str(code)[0])
         smtp_reply = "%s %s" % (code, reply_text)
         if expected_first_digit is not None:
-            assert_equals(expected_first_digit, first_code_digit, smtp_reply)
+            assert first_code_digit == expected_first_digit, smtp_reply
 
     def send(self, command, data=None, expected_first_digit=2):
         number_replies_before = len(self.command_parser.replies)
         self.session.handle_input(command, data)
-        assert_length(number_replies_before + 1, self.command_parser.replies)
+        assert len(self.command_parser.replies) == number_replies_before + 1
         code, reply_text = self.command_parser.replies[-1]
         self.check_reply_code(code, reply_text, expected_first_digit=int(expected_first_digit))
         return (code, reply_text)
@@ -246,17 +246,17 @@ class CommandParserTestCase(PythonicTestCase):
         else:
             self.send('AUTH LOGIN', expected_first_digit=3)
             code, reply_text = self._handle_auth_credentials(username_b64)
-            assert_equals(334, code)
+            assert code == 334
             nr_replies = 2
         if expect_username_error:
-            assert_length(previous_replies+nr_replies, self.command_parser.replies)
+            assert len(self.command_parser.replies) == previous_replies+nr_replies
             return self.last_reply()
-        assert_not_none(password_b64)
+        assert password_b64 is not None
 
         reply_text = self._check_last_code(expected_code)
-        assert_equals(b64encode('Password:'), reply_text)
+        assert reply_text == b64encode('Password:')
         self._handle_auth_credentials(password_b64)
-        assert_length(previous_replies+nr_replies+1, self.command_parser.replies)
+        assert len(self.command_parser.replies) == previous_replies+nr_replies+1
         return self.last_reply()
 
     def _handle_auth_credentials(self, b64_data):
@@ -273,7 +273,7 @@ class CommandParserTestCase(PythonicTestCase):
     def close_connection(self):
         self.send('quit', expected_first_digit=2)
         code, reply_text = self.command_parser.replies[-1]
-        assert_equals(221, code)
-        assert_equals('localhost closing connection', reply_text)
-        assert_false(self.command_parser.open)
+        assert code == 221
+        assert reply_text == 'localhost closing connection'
+        assert not self.command_parser.open
 
