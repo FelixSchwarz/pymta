@@ -25,7 +25,13 @@ from .mta import PythonMTA
 from .session import SMTPSession
 
 
-__all__ = ['BlackholeDeliverer', 'DebuggingMTA', 'MTAThread', 'SMTPTestCase']
+__all__ = [
+    'BlackholeDeliverer',
+    'CommandParserHelper',
+    'DebuggingMTA',
+    'MTAThread',
+    'SMTPTestCase',
+]
 
 
 class BlackholeDeliverer(IMessageDeliverer):
@@ -201,24 +207,27 @@ class DummyAuthenticator(IAuthenticator):
         return username == password
 
 
-class CommandParserTestCase(TestCase):
-
-    def setUp(self, policy=None):
-        super(CommandParserTestCase, self).setUp()
-        self.init(policy=policy)
-
-    def tearDown(self):
-        if self.command_parser.open:
-            self.close_connection()
-        super(CommandParserTestCase, self).tearDown()
-
-    def init(self, policy=None, authenticator=None):
+class CommandParserHelper(object):
+    def __init__(self, policy=None, authenticator=None):
+        self.deliverer = None
         self.command_parser = MockCommandParser()
         self.deliverer = BlackholeDeliverer()
-        self.session = SMTPSession(command_parser=self.command_parser,
-                                   deliverer=self.deliverer,
-                                   policy=policy, authenticator=authenticator)
-        self.session.new_connection('127.0.0.1', 4567)
+        self.session = self.new_session(policy=policy, authenticator=authenticator)
+
+    def new_session(self, policy=None, authenticator=None):
+        session = SMTPSession(
+            command_parser = self.command_parser,
+            deliverer      = self.deliverer,
+            policy         = policy,
+            authenticator  = authenticator,
+        )
+        session.new_connection('127.0.0.1', 4567)
+        return session
+
+    def check_last_code(self, expected_code):
+        code, reply_text = self.last_reply()
+        assert code == expected_code
+        return reply_text
 
     def check_reply_code(self, code, reply_text, expected_first_digit):
         first_code_digit = int(str(code)[0])
@@ -237,6 +246,10 @@ class CommandParserTestCase(TestCase):
     def last_reply(self):
         return self.command_parser.replies[-1]
 
+    def last_server_message(self):
+        last_code, last_message = self.last_reply()
+        return last_message
+
     def send_auth_login(self, username_b64=None, password_b64=None, expect_username_error=False, reduce_roundtrips=True):
         previous_replies = len(self.command_parser.replies)
         expected_code = 334 if not expect_username_error else 501
@@ -253,7 +266,7 @@ class CommandParserTestCase(TestCase):
             return self.last_reply()
         assert password_b64 is not None
 
-        reply_text = self._check_last_code(expected_code)
+        reply_text = self.check_last_code(expected_code)
         assert reply_text == b64encode('Password:')
         self._handle_auth_credentials(password_b64)
         assert len(self.command_parser.replies) == previous_replies+nr_replies+1
@@ -276,4 +289,3 @@ class CommandParserTestCase(TestCase):
         assert code == 221
         assert reply_text == 'localhost closing connection'
         assert not self.command_parser.open
-

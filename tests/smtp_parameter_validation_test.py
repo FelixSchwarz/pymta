@@ -4,143 +4,137 @@
 from __future__ import print_function, unicode_literals
 
 from pymta.compat import b64encode
-from pymta.test_util import CommandParserTestCase, DummyAuthenticator
+from pymta.test_util import CommandParserHelper, DummyAuthenticator
 
 
+def send_invalid(cph, command, data=None):
+    return cph.send(command, data=data, expected_first_digit=5)
 
-class SMTPParameterValidationTest(CommandParserTestCase):
+def send_valid(cph, command, data=None):
+    return cph.send(command, data=data, expected_first_digit=2)
 
-    def last_server_message(self):
-        last_code, last_message = self.command_parser.replies[-1]
-        return last_message
+# -------------------------------------------------------------------------
+# helo/ehlo
 
-    def send_invalid(self, command, data=None):
-        return super(SMTPParameterValidationTest, self).send(command, data=data, expected_first_digit=5)
+def test_helo_accepts_exactly_one_parameter():
+    _cp = CommandParserHelper()
+    send_invalid(_cp, 'helo')
+    send_invalid(_cp, 'helo', 'foo bar')
+    send_invalid(_cp, 'helo', '')
 
-    def send_valid(self, command, data=None):
-        return super(SMTPParameterValidationTest, self).send(command, data=data, expected_first_digit=2)
+def test_ehlo_accepts_exactly_one_parameter():
+    _cp = CommandParserHelper()
+    send_invalid(_cp, 'ehlo')
+    send_invalid(_cp, 'ehlo', 'foo bar')
 
-    # -------------------------------------------------------------------------
-    # helo/ehlo
+# -------------------------------------------------------------------------
+# commands without parameters
 
-    def test_helo_accepts_exactly_one_parameter(self):
-        self.send_invalid('helo')
-        self.send_invalid('helo', 'foo bar')
-        self.send_invalid('helo', '')
+def helo(cph):
+    send_valid(cph, 'helo', 'fnord')
 
-    def test_ehlo_accepts_exactly_one_parameter(self):
-        self.send_invalid('ehlo')
-        self.send_invalid('ehlo', 'foo bar')
+def test_noop_does_not_accept_any_parameters():
+    _cp = CommandParserHelper()
+    helo(_cp)
+    send_invalid(_cp, 'noop', 'foo')
 
-    # -------------------------------------------------------------------------
-    # commands without parameters
+def test_rset_does_not_accept_any_parameters():
+    _cp = CommandParserHelper()
+    helo(_cp)
+    send_invalid(_cp, 'rset', 'foo')
 
-    def helo(self):
-        self.send_valid('helo', 'fnord')
+def test_quit_does_not_accept_any_parameters():
+    _cp = CommandParserHelper()
+    helo(_cp)
+    send_invalid(_cp, 'quit', 'invalid')
 
-    def test_noop_does_not_accept_any_parameters(self):
-        self.helo()
+def test_data_does_not_accept_any_parameters():
+    _cp = CommandParserHelper()
+    helo_and_mail_from(_cp)
+    send_valid(_cp, 'rcpt to', 'foo@example.com')
 
-        self.send_invalid('noop', 'foo')
+    send_invalid(_cp, 'data', 'invalid')
 
-    def test_rset_does_not_accept_any_parameters(self):
-        self.helo()
+# -------------------------------------------------------------------------
+# MAIL FROM
 
-        self.send_invalid('rset', 'foo')
+def test_mail_from_requires_an_email_address():
+    _cp = CommandParserHelper()
+    helo(_cp)
+    send_invalid(_cp, 'mail from')
+    send_invalid(_cp, 'mail from', 'foo@@bar')
 
-    def test_quit_does_not_accept_any_parameters(self):
-        self.helo()
+def test_mail_from_must_not_have_extensions_for_plain_smtp():
+    _cp = CommandParserHelper()
+    helo(_cp)
+    send_invalid(_cp, 'mail from', '<foo@example.com> SIZE=100')
+    assert _cp.last_server_message() == 'No SMTP extensions allowed for plain SMTP.'
 
-        self.send_invalid('quit', 'invalid')
+def ehlo(cph):
+    send_valid(cph, 'ehlo', 'fnord')
 
-    def test_data_does_not_accept_any_parameters(self):
-        self.helo_and_mail_from()
-        self.send_valid('rcpt to', 'foo@example.com')
+def test_mail_from_validates_size_extension():
+    _cp = CommandParserHelper()
+    ehlo(_cp)
+    send_invalid(_cp, 'mail from', '<foo@example.com> SIZE=fnord')
 
-        self.send_invalid('data', 'invalid')
+def test_mail_from_rejects_unknown_extension():
+    _cp = CommandParserHelper()
+    send_valid(_cp, 'ehlo', 'fnord')
 
-    # -------------------------------------------------------------------------
-    # MAIL FROM
+    send_invalid(_cp, 'mail from', '<foo@example.com> FNORD=INVALID')
+    assert _cp.last_server_message() == 'Invalid extension: "FNORD=INVALID"'
 
-    def test_mail_from_requires_an_email_address(self):
-        self.helo()
+def helo_and_mail_from(_cp):
+    helo(_cp)
+    send_valid(_cp, 'mail from', 'foo@example.com')
 
-        self.send_invalid('mail from')
-        self.send_invalid('mail from', 'foo@@bar')
+# -------------------------------------------------------------------------
+# RCPT TO
 
-    def test_mail_from_must_not_have_extensions_for_plain_smtp(self):
-        self.helo()
+def test_rcpt_to_requires_an_email_address():
+    _cp = CommandParserHelper()
+    helo_and_mail_from(_cp)
 
-        self.send_invalid('mail from', '<foo@example.com> SIZE=100')
-        assert self.last_server_message() == 'No SMTP extensions allowed for plain SMTP.'
+    send_invalid(_cp, 'rcpt to')
+    send_invalid(_cp, 'rcpt to foo@@bar.com')
+    send_invalid(_cp, 'rcpt to foo@bar.com invalid')
 
-    def ehlo(self):
-        self.send_valid('ehlo', 'fnord')
+def test_rcpt_to_accepts_a_valid_email_address():
+    _cp = CommandParserHelper()
+    helo_and_mail_from(_cp)
+    send_valid(_cp, 'rcpt to', 'foo@example.com')
+    send_valid(_cp, 'rcpt to', '<foo@example.com>')
 
-    def test_mail_from_validates_size_extension(self):
-        self.ehlo()
+# -------------------------------------------------------------------------
+# AUTH PLAIN
 
-        self.send_invalid('mail from', '<foo@example.com> SIZE=fnord')
+def _base64(value):
+    return b64encode(value).strip()
 
-    def test_mail_from_rejects_unknown_extension(self):
-        self.send_valid('ehlo', 'fnord')
+def test_auth_plain_accepts_correct_authentication():
+    _cp = CommandParserHelper(authenticator=DummyAuthenticator())
+    ehlo(_cp)
+    send_valid(_cp, 'AUTH PLAIN', b64encode('\x00foo\x00foo'))
 
-        self.send_invalid('mail from', '<foo@example.com> FNORD=INVALID')
-        assert self.last_server_message() == 'Invalid extension: "FNORD=INVALID"'
+def test_auth_plain_requires_exactly_one_parameter():
+    _cp = CommandParserHelper(authenticator=DummyAuthenticator())
+    ehlo(_cp)
 
-    def helo_and_mail_from(self):
-        self.helo()
-        self.send_valid('mail from', 'foo@example.com')
+    send_invalid(_cp, 'AUTH PLAIN')
+    base64_credentials = _base64('\x00foo\x00foo')
+    send_invalid(_cp, 'AUTH PLAIN', base64_credentials + ' ' + base64_credentials)
 
-    # -------------------------------------------------------------------------
-    # RCPT TO
+def test_auth_plain_detects_bad_base64_credentials():
+    _cp = CommandParserHelper(authenticator=DummyAuthenticator())
+    ehlo(_cp)
 
-    def test_rcpt_to_requires_an_email_address(self):
-        self.helo_and_mail_from()
+    send_invalid(_cp, 'AUTH PLAIN')
+    send_invalid(_cp, 'AUTH PLAIN', 'invalid_base64')
 
-        self.send_invalid('rcpt to')
-        self.send_invalid('rcpt to foo@@bar.com')
-        self.send_invalid('rcpt to foo@bar.com invalid')
-
-    def test_rcpt_to_accepts_a_valid_email_address(self):
-        self.helo_and_mail_from()
-        self.send_valid('rcpt to', 'foo@example.com')
-        self.send_valid('rcpt to', '<foo@example.com>')
-
-    # -------------------------------------------------------------------------
-    # AUTH PLAIN
-
-    def inject_authenticator(self):
-        self.session._authenticator = DummyAuthenticator()
-
-    def base64(self, value):
-        return b64encode(value).strip()
-
-    def test_auth_plain_accepts_correct_authentication(self):
-        self.inject_authenticator()
-        self.ehlo()
-
-        self.send_valid('AUTH PLAIN', b64encode('\x00foo\x00foo'))
-
-    def test_auth_plain_requires_exactly_one_parameter(self):
-        self.inject_authenticator()
-        self.ehlo()
-
-        self.send_invalid('AUTH PLAIN')
-        base64_credentials = self.base64('\x00foo\x00foo')
-        self.send_invalid('AUTH PLAIN', base64_credentials + ' ' + base64_credentials)
-
-    def test_auth_plain_detects_bad_base64_credentials(self):
-        self.inject_authenticator()
-        self.ehlo()
-
-        self.send_invalid('AUTH PLAIN')
-        self.send_invalid('AUTH PLAIN', 'invalid_base64')
-
-    def test_auth_plain_reject_bad_credentials(self):
-        self.inject_authenticator()
-        self.ehlo()
-
-        self.send_invalid('AUTH PLAIN', self.base64('\x00foo\x00bar'))
+def test_auth_plain_reject_bad_credentials():
+    _cp = CommandParserHelper(authenticator=DummyAuthenticator())
+    ehlo(_cp)
+    send_invalid(_cp, 'AUTH PLAIN', _base64('\x00foo\x00bar'))
 
 
