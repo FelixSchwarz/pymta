@@ -235,6 +235,19 @@ class CommandParserHelper(object):
         if expected_first_digit is not None:
             assert first_code_digit == expected_first_digit, smtp_reply
 
+    def ehlo(self):
+        self.send_valid('ehlo', 'fnord')
+
+    def helo(self):
+        self.send_valid('helo', 'fnord')
+
+    def last_reply(self):
+        return self.command_parser.replies[-1]
+
+    def last_server_message(self):
+        last_code, last_message = self.last_reply()
+        return last_message
+
     def send(self, command, data=None, expected_first_digit=2):
         number_replies_before = len(self.command_parser.replies)
         self.session.handle_input(command, data)
@@ -243,12 +256,11 @@ class CommandParserHelper(object):
         self.check_reply_code(code, reply_text, expected_first_digit=int(expected_first_digit))
         return (code, reply_text)
 
-    def last_reply(self):
-        return self.command_parser.replies[-1]
+    def send_invalid(self, command, data=None):
+        return self.send(command, data=data, expected_first_digit=5)
 
-    def last_server_message(self):
-        last_code, last_message = self.last_reply()
-        return last_message
+    def send_valid(self, command, data=None):
+        return self.send(command, data=data, expected_first_digit=2)
 
     def send_auth_login(self, username_b64=None, password_b64=None, expect_username_error=False, reduce_roundtrips=True):
         previous_replies = len(self.command_parser.replies)
