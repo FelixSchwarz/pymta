@@ -16,6 +16,7 @@ import socket
 import threading
 import time
 from unittest import TestCase
+import warnings
 
 from pycerberus.errors import InvalidDataError
 
@@ -31,6 +32,7 @@ __all__ = [
     'DebuggingMTA',
     'MTAThread',
     'SMTPTestCase',
+    'SMTPTestHelper',
 ]
 
 
@@ -90,6 +92,60 @@ class MTAThread(threading.Thread):
             print("WARNING: Thread still alive. Timeout while waiting for termination!")
 
 
+
+class SMTPTestHelper(object):
+    def __init__(self, policy_class=IMTAPolicy, authenticator_class=None):
+        self.hostname = 'localhost'
+        self.listen_port = random.randint(8000, 40000)
+        self.deliverer = BlackholeDeliverer
+        self.mta = DebuggingMTA(
+            self.hostname,
+            self.listen_port,
+            deliverer_class     = self.deliverer,
+            policy_class        = policy_class,
+            authenticator_class = authenticator_class,
+        )
+        self.mta_thread = None
+
+    def start_mta(self, wait_until_ready=True):
+        """Starts the MTA in a separate thread."""
+        if self.mta_thread is not None:
+            self.stop_mta()
+        self.mta_thread = MTAThread(self.mta)
+        self.mta_thread.start()
+        if wait_until_ready:
+            self._try_to_connect_to_mta(self.hostname, self.listen_port)
+        return (self.hostname, self.listen_port)
+
+    def _try_to_connect_to_mta(self, host, port):
+        tries = 0
+        while tries < 10:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect((host, port))
+            except socket.error:
+                try:
+                    sock.close()
+                except socket.error:
+                    pass
+                tries += 1
+                time.sleep(0.1)
+            else:
+                sock.close()
+                return
+        raise AssertionError('MTA not reachable on port %d' % (port,))
+
+    def stop_mta(self):
+        if self.mta_thread is not None:
+            self.mta_thread.stop()
+            self.mta_thread = None
+
+    def get_received_messages(self):
+        """Return a list of received messages which are stored in the
+        BlackholeDeliverer."""
+        return self.deliverer.received_messages
+
+
 class SMTPTestCase(TestCase):
     """The SMTPTestCase is a unittest.TestCase and provides you with a running
     MTA listening on 'localhost:[8000-40000]' which you can use in your
@@ -99,59 +155,28 @@ class SMTPTestCase(TestCase):
     Please make sure that you call the super method for setUp and tearDown."""
 
     def setUp(self):
+        warnings.warn(f'SMTPTestCase is deprecated, use SMTPTestHelper instead', DeprecationWarning, stacklevel=2)
         super(SMTPTestCase, self).setUp()
-        self.hostname = 'localhost'
-        self.listen_port = random.randint(8000, 40000)
-        self.mta_thread = None
-        self.init_mta()
+        self._helper = SMTPTestHelper()
+        self._helper.start_mta()
 
-    def build_mta(self, hostname, listen_port, deliverer, policy_class=None):
-        """Return a PythonMTA instance which is configured according to your
-        needs."""
-        return DebuggingMTA(hostname, listen_port, deliverer,
-                            policy_class=policy_class)
+    @property
+    def hostname(self):
+        return self._helper.hostname
 
-    def init_mta(self, policy_class=IMTAPolicy):
-        """Starts the MTA in a separate thread with a BlackholeDeliver. This
-        method also ensures that the MTA is really listening on the specified
-        port."""
-        self.stop_mta()
-        self.deliverer = BlackholeDeliverer
-        self.mta = self.build_mta(self.hostname, self.listen_port,
-                                  self.deliverer, policy_class)
-        self.mta_thread = MTAThread(self.mta)
-        self.mta_thread.start()
-
-        self._try_to_connect_to_mta(self.hostname, self.listen_port)
-
-    def _try_to_connect_to_mta(self, host, port):
-        tries = 0
-        while tries < 10:
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect((host, port))
-            except socket.error:
-                tries += 1
-                time.sleep(0.1)
-            else:
-                sock.close()
-                return
-        assert False, 'MTA not reachable'
-
-    def stop_mta(self):
-        if self.mta_thread is not None:
-            self.mta_thread.stop()
-            self.mta_thread = None
+    @property
+    def listen_port(self):
+        return self._helper.listen_port
 
     def tearDown(self):
         """Stops the MTA thread."""
-        self.stop_mta()
+        self._helper.stop_mta()
         super(SMTPTestCase, self).tearDown()
 
     def get_received_messages(self):
         """Return a list of received messages which are stored in the
         BlackholeDeliverer."""
-        return self.deliverer.received_messages
+        return self._helper.get_received_messages()
 
 
 
