@@ -68,7 +68,7 @@ class StateMachine(object):
         return self._flags.get(flag, False)
 
     def _execute_operation(self, operation):
-        match = re.search('^set_(\w+)$', operation)
+        match = re.search(r'^set_(\w+)$', operation)
         assert match is not None
         flag_name = match.group(1)
         self._flags[flag_name] = True
@@ -76,7 +76,7 @@ class StateMachine(object):
     def _is_condition_satisfied(self, condition):
         if condition is None:
             return True
-        match = re.search('^if_(not_)?(\w+?)$', condition)
+        match = re.search(r'^if_(not_)?(\w+?)$', condition)
         assert match is not None
         flag = match.group(2)
         if match.group(1):

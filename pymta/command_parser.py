@@ -21,7 +21,7 @@ class ParserImplementation(object):
 
     def __init__(self, allowed_commands):
         self._allowed_commands = allowed_commands
-        regex_string = '^(%s)(?: |:)\s*(.*)$' % '|'.join(allowed_commands)
+        regex_string = r'^(%s)(?: |:)\s*(.*)$' % '|'.join(allowed_commands)
         self.parse_regex = re.compile(regex_string, re.IGNORECASE)
 
     def parse(self, command):
@@ -149,7 +149,7 @@ class SMTPCommandParser(object):
     def _remove_leading_dots_for_smtp_transparency_support(self, input_data):
         """Uses the input data to recover the original payload (includes
         transparency support as specified in RFC 821, Section 4.5.2)."""
-        regex = re.compile('^\.\.', re.MULTILINE)
+        regex = re.compile(r'^\.\.', re.MULTILINE)
         data_without_transparency_dots = regex.sub('.', input_data)
         return re.sub('\r\n', '\n', data_without_transparency_dots)
 

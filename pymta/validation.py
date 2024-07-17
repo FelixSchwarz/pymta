@@ -30,7 +30,7 @@ class SMTPCommandArgumentsSchema(PositionalArgumentsParsingSchema):
         return {'additional_item': _("Syntactically invalid argument(s) '%(additional_item)s'")}
 
     def separator_pattern(self):
-        return '\s+'
+        return r'\s+'
 
 
 class SMTPEmailValidator(EmailAddressValidator):
@@ -163,11 +163,11 @@ class AuthPlainSchema(SMTPCommandArgumentsSchema):
             self.raise_error('invalid_base64', value, context)
 
     def split_parameters(self, value, context):
-        match = re.search(('=\s(.+)$'), value.strip())
+        match = re.search((r'=\s(.+)$'), value.strip())
         if match is not None:
             self.raise_error('additional_item', value, context, additional_item=repr(match.group(1)))
         decoded_parameters = self._decode_base64(value, context)
-        match = re.search('^([^\x00]*)\x00([^\x00]*)\x00([^\x00]*)$', decoded_parameters)
+        match = re.search(r'^([^\x00]*)\x00([^\x00]*)\x00([^\x00]*)$', decoded_parameters)
         if not match:
             self.raise_error('invalid_format', value, context)
         parameters = list(match.groups())
