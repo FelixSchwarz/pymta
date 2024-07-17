@@ -13,7 +13,7 @@ __all__ = ['PythonMTA']
 
 
 
-def forked_child(queue, server_socket, deliverer_class, policy_class,
+def run_worker(queue, server_socket, deliverer_class, policy_class,
                  authenticator_class):
     child = WorkerProcess(queue, server_socket, deliverer_class, policy_class,
                           authenticator_class)
@@ -79,7 +79,7 @@ class PythonMTA(object):
         """Start a new child worker process which will listen on the given
         socket and return a reference to the new process."""
         from multiprocessing import Process
-        p = Process(target=forked_child, args=self._get_child_args(server_socket))
+        p = Process(target=run_worker, args=self._get_child_args(server_socket))
         p.start()
         return p
 
@@ -107,7 +107,7 @@ class PythonMTA(object):
             for process in self._processes:
                 process.join()
         else:
-            forked_child(*self._get_child_args(server_socket))
+            run_worker(*self._get_child_args(server_socket))
         server_socket.close()
         self._queue = None
 
