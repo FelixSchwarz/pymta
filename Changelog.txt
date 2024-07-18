@@ -2,7 +2,7 @@
 Changelog for pymta
 ===================
 
-0.8.0 (2024-??-??)
+0.8.0 (2024-07-18)
 - also support Python 3.10-3.12
 - use GitHub Actions for testing
 - convert tests to pytest, drop dependency on PyhonicTestCase
