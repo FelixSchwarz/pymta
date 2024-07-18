@@ -2,6 +2,14 @@
 Changelog for pymta
 ===================
 
+0.8.0 (2024-??-??)
+- also support Python 3.10-3.12
+- use GitHub Actions for testing
+- convert tests to pytest, drop dependency on PyhonicTestCase
+- replace `CommandParserTestCase` and `SMTPTestCase` with helper classes
+  unrelated to unittest's `TestCase` to facilitate reuse with plain
+  pytest functions.
+
 0.7.1 (2020-11-12)
 - support Python 3.9
 
