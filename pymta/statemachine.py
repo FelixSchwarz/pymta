@@ -44,7 +44,10 @@ class StateMachine(object):
         self._transitions.setdefault(from_state, {})
         if action_name in self._transitions[from_state]:
             old_to_state = self._transitions[from_state][action_name][0]
-            msg = 'Duplicate action "%s" for state "%s" (-> "%s" already known, can not add transition to "%s")' % (action_name, from_state, old_to_state, to_state)
+            msg = (
+                'Duplicate action "%s" for state "%s" '
+                '(-> "%s" already known, can not add transition to "%s")'
+            ) % (action_name, from_state, old_to_state, to_state)
             raise StateMachineDefinitionError(msg)
         self._transitions[from_state][action_name] = (to_state, handler, operations, condition)
 
@@ -107,8 +110,6 @@ class StateMachine(object):
         states = self.known_non_final_states()
         for from_state, action_names in self._transitions.items():
             for action_name in action_names:
-                (to_state, handler, operations, condition) = self._transitions[from_state][action_name]
+                (to_state, _, _, _) = self._transitions[from_state][action_name]
                 states.update((to_state,))
         return states
-
-

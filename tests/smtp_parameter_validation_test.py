@@ -124,5 +124,3 @@ def test_auth_plain_reject_bad_credentials():
     _cp = CommandParserHelper(authenticator=DummyAuthenticator())
     _cp.ehlo()
     _cp.send_invalid('AUTH PLAIN', _base64('\x00foo\x00bar'))
-
-

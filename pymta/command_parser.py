@@ -6,10 +6,11 @@ from __future__ import print_function, unicode_literals
 import re
 import socket
 
+from pymta.compat import basestring, queue
 from pymta.exceptions import SMTPViolationError
 from pymta.session import SMTPSession
 from pymta.statemachine import StateMachine
-from pymta.compat import queue, basestring
+
 
 __all__ = ['SMTPCommandParser']
 
@@ -190,7 +191,7 @@ class SMTPCommandParser(object):
             self.session.handle_auth_credentials(parameter)
             self.data = ''
         else:
-            msg_data = self._remove_leading_dots_for_smtp_transparency_support(input_data_without_terminator)
+            msg_data = self._remove_leading_dots_for_smtp_transparency_support(input_data_without_terminator)  # noqa: E501 (line-too-long)
             self.session.handle_input('MSGDATA', msg_data)
 
     def close_when_done(self):
@@ -326,4 +327,3 @@ class WorkerProcess(object):
         except socket.error:
             self.close()
             self._ignore_write_operations = True
-

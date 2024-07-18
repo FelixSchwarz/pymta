@@ -36,7 +36,9 @@ class SMTPCommandArgumentsSchema(PositionalArgumentsParsingSchema):
 class SMTPEmailValidator(EmailAddressValidator):
 
     def messages(self):
-        return {'unbalanced_quotes': _('Invalid email address format - use balanced angle brackets.')}
+        return {
+            'unbalanced_quotes': _('Invalid email address format - use balanced angle brackets.'),
+        }
 
     def convert(self, value, context):
         string_value = super(SMTPEmailValidator, self).convert(value, context)
@@ -159,13 +161,16 @@ class AuthPlainSchema(SMTPCommandArgumentsSchema):
     def _decode_base64(self, value, context):
         try:
             return b64decode(value)
-        except:
+        except Exception:
             self.raise_error('invalid_base64', value, context)
 
     def split_parameters(self, value, context):
         match = re.search((r'=\s(.+)$'), value.strip())
         if match is not None:
-            self.raise_error('additional_item', value, context, additional_item=repr(match.group(1)))
+            self.raise_error(
+                'additional_item', value, context,
+                additional_item=repr(match.group(1)),
+            )
         decoded_parameters = self._decode_base64(value, context)
         match = re.search(r'^([^\x00]*)\x00([^\x00]*)\x00([^\x00]*)$', decoded_parameters)
         if not match:
@@ -197,5 +202,5 @@ class AuthLoginSchema(SMTPCommandArgumentsSchema):
     def _decode_base64(self, value, context):
         try:
             return b64decode(value)
-        except:
+        except Exception:
             self.raise_error('invalid_base64', value, context)

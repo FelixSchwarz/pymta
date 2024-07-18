@@ -4,7 +4,6 @@
 from __future__ import print_function, unicode_literals
 
 import pytest
-
 from pymta.api import IMTAPolicy
 from pymta.compat import b64encode
 from pymta.test_util import CommandParserHelper, DummyAuthenticator
@@ -265,7 +264,8 @@ def test_can_still_use_esmtp_after_first_mail():
     _send_mail('Subject: First Message\n\nJust testing...\n', _cp)
     _cp.send('MAIL FROM', '<foo@example.com>   size=106530  ')
 
-def send_auth_login(_cp, username=None, username_b64=None, password=None, password_b64=None, **kwargs):
+def send_auth_login(_cp, username=None, username_b64=None, password=None,
+                    password_b64=None, **kwargs):
     assert (username is not None) ^ (username_b64 is not None)
     if username_b64 is None:
         username_b64 = b64encode(username)
@@ -281,4 +281,3 @@ def send_auth_login(_cp, username=None, username_b64=None, password=None, passwo
         expect_username_error = expect_username_error,
         **kwargs
     )
-

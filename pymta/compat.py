@@ -5,22 +5,24 @@ for all versions of Python."""
 
 from __future__ import print_function, unicode_literals
 
+
 try:
     import queue
 except ImportError:
     # Python 2
     import Queue as queue
-import sys
 import base64
+import sys
+
 
 __all__ = ['queue']
 
 
 if sys.version_info < (3, 0):
-    basestring = basestring
+    basestring = basestring  # noqa: F821 (undefined name)
     binary = bytes = str
-    unicode = unicode
-    range = xrange
+    unicode = unicode  # noqa: F821 (undefined name)
+    range = xrange  # noqa: F821 (undefined name)
     b64encode = lambda x: str(x).encode('base64').strip()
     b64decode = lambda x: str(x).decode('base64')
 else:

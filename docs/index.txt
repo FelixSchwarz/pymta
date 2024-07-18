@@ -3,11 +3,11 @@
 pymta Documentation
 *******************
 
-pymta is a library to build a custom SMTP server in Python. This is useful if 
+pymta is a library to build a custom SMTP server in Python. This is useful if
 you want to...
 
 * test mail-sending code against a real SMTP server even in your unit tests.
-* build a custom SMTP server with non-standard behavior without reimplementing 
+* build a custom SMTP server with non-standard behavior without reimplementing
   the whole SMTP protocol.
 * have a low-volume SMTP server which can be easily extended using Python.
 
@@ -19,7 +19,7 @@ Goals of pymta
 ==============
 
 The main goal of pymta is to provide a basic SMTP server for unit tests. It must
-be easy to inject custom behavior (policy checks) for every SMTP command. 
+be easy to inject custom behavior (policy checks) for every SMTP command.
 Furthermore the library should come with an extensive set of tests to ensure that
 does the right thing(tm).
 
@@ -30,24 +30,24 @@ hacked (just for the fun of it).
 Development Status
 ==================
 
-Currently (06/2009, version 0.4) the library only implements basic SMTP with 
+Currently (06/2009, version 0.4) the library only implements basic SMTP with
 very few extensions (e.g. PLAIN authentication). However, as far as I know, it
 is the only MTA written in Python that implements a process-based strategy for
-connection handling which is an advantage because many libraries - including 
-most Python DB API implementations - can not be used in an asynchronous 
+connection handling which is an advantage because many libraries - including
+most Python DB API implementations - can not be used in an asynchronous
 environment and you can use your CPUs to their fullest extent. And last but not
 least pymta comes with many unit tests and good, comprehensive documentation.
 
-'Advanced' features which are necessary for any decent MTA like TLS and 
-pipelining are not yet implemented. Currently pymta is used only in the unit 
-tests for `TurboMail <http://www.python-turbomail.org>`_. Therefore it should 
+'Advanced' features which are necessary for any decent MTA like TLS and
+pipelining are not yet implemented. Currently pymta is used only in the unit
+tests for `TurboMail <http://www.python-turbomail.org>`_. Therefore it should
 be considered as beta software.
 
 
 Related Projects
 ================
 
-There are some other SMTP server implementations in Python available which you 
+There are some other SMTP server implementations in Python available which you
 may want to use if you need a proven implementation right now:
 
 * `Python's smtpd <http://docs.python.org/library/smtpd.html>`_
@@ -56,34 +56,34 @@ may want to use if you need a proven implementation right now:
 * `Son Of Sam Email Server <http://www.zedshaw.com/projects/sos/>`_
 * `smtps.py <http://www.hare.demon.co.uk/pysmtp.html>`_
 
-Python's **smtpd** is a module which is included in the standard distribution of 
-Python for a long time. Though it implements only a *very* basic feature set 
+Python's **smtpd** is a module which is included in the standard distribution of
+Python for a long time. Though it implements only a *very* basic feature set
 this module is used as a basis for many smaller SMTP server implementations.
-In the beginning I used this module for my unit tests too but quite soon I had 
-to  realize that the code is old and messy and it is nearly impossible to 
-implement a custom behavior (e.g. reject certain recipients). pymta evolved out 
-of smtpd after multiple refactorings based on the idea to use a simple finite 
-state machine (initially repoze.workflow, now including a custom one).  
+In the beginning I used this module for my unit tests too but quite soon I had
+to  realize that the code is old and messy and it is nearly impossible to
+implement a custom behavior (e.g. reject certain recipients). pymta evolved out
+of smtpd after multiple refactorings based on the idea to use a simple finite
+state machine (initially repoze.workflow, now including a custom one).
 
-**Twisted Mail** is probably the most featureful SMTP server implementation 
-in Python available right now. It uses the twisted framework which can be 
+**Twisted Mail** is probably the most featureful SMTP server implementation
+in Python available right now. It uses the twisted framework which can be
 either a huge advantage or disadvantage, depending on your point of view. It can
-use TLS via OpenSSL (using the Twisted infrastructure). When I started out with 
-the naïve idea of just extending Python's smtpd a bit, I dismissed Twisted Mail 
-because it seemed to be quite hard to implement some custom behavior without 
+use TLS via OpenSSL (using the Twisted infrastructure). When I started out with
+the naïve idea of just extending Python's smtpd a bit, I dismissed Twisted Mail
+because it seemed to be quite hard to implement some custom behavior without
 writing too much code.
 
 **tmda-ofmipd** is another implementation which is based on Python's smtpd. It is
-distributed only as part of a larger Python application which makes it harder 
+distributed only as part of a larger Python application which makes it harder
 to use if you just need a plain Python SMTP server. Furthermore the code was not
-cleaned up so it may be a bit hard to understand but it supports TLS (using 
+cleaned up so it may be a bit hard to understand but it supports TLS (using
 `tlslite <http://sourceforge.net/projects/tlslite/>`_).
 
 **Son Of Sam Email Server** implements an SMTP server (based Python's smtpd too)
 but focuses on delivery and user info lookup. There are no changes to Python's
 smtpd so the server does not support any kind of recipient verification.
 
-**smtps.py** is a really simple, single-threaded SMTP server rewritten from 
+**smtps.py** is a really simple, single-threaded SMTP server rewritten from
 scratch with a quite clean design (compared to Python's smtpd) although it only
 implements the absolute minimum of SMTP and many things like the command parsing
 are just hard-coded. On the other hand, the server's behavior can be changed by
@@ -94,11 +94,11 @@ of smtps in its test suite.
 Installation and Setup
 ======================
 
-pymta is just a Python library which uses setuptools so it does not require 
-a special setup. To serve multiple connections in parallel, pymta uses the 
-`multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ module 
+pymta is just a Python library which uses setuptools so it does not require
+a special setup. To serve multiple connections in parallel, pymta uses the
+`multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ module
 which was added to the standard library in Python 2.6 (there are backports for
-Python 2.4 and 2.5). Furthermore you need to install 
+Python 2.4 and 2.5). Furthermore you need to install
 `pycerberus <http://www.schwarz.eu/opensource/projects/pycerberus>`_.
 
 pymta supports Python 2.7 and Python 3.4+.
@@ -107,10 +107,10 @@ pymta supports Python 2.7 and Python 3.4+.
 multiprocessing
 ---------------
 The `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_
-module hides most the operating system differences when it comes to multiple 
+module hides most the operating system differences when it comes to multiple
 processes. The module is included in Python 2.6 but it is available standalone
 via pypi::
-  
+
   easy_install multiprocessing
 
 If multiprocessing is not installed, pymta will fall back to single-threaded
@@ -121,74 +121,74 @@ egg file).
 Architectural Overview
 **********************
 
-pytma uses multiple processes to handle more than one connection at the same 
-time. In order to do this in a platform-independent manner, it utilizes the 
+pytma uses multiple processes to handle more than one connection at the same
+time. In order to do this in a platform-independent manner, it utilizes the
 multiprocessing module.
 
 The basic SMTP program flow is determined by two state machines: One for
-the SMTP command parsing mode (single-line commands or data) in the 
-SMTPCommandParser and another much bigger state machine in the SMTPSession to 
+the SMTP command parsing mode (single-line commands or data) in the
+SMTPCommandParser and another much bigger state machine in the SMTPSession to
 control the correct order of commands sent by the SMTP client.
 
 The main idea of pymta was to make it easy adding custom behavior which is
 considered configuration for 'real' SMTP servers like `Exim <http://www.exim.org>`_.
-The 'pymta.api' module contains classes which define interfaces for 
-customizations. These interfaces are part of the public API so I try to keep 
-them stable in future releases. Use IMTAPolicy to add restrictions on certain 
+The 'pymta.api' module contains classes which define interfaces for
+customizations. These interfaces are part of the public API so I try to keep
+them stable in future releases. Use IMTAPolicy to add restrictions on certain
 SMTP commands (check recipient addresses, scan the message's content for spam before
-accepting it) and IAuthenticator to authenticate SMTP clients (check username 
-and password). With an IMessageDeliverer you can specify what to do with 
+accepting it) and IAuthenticator to authenticate SMTP clients (check username
+and password). With an IMessageDeliverer you can specify what to do with
 received messages.
 
 Problems with asynchronous architectures
 ========================================
-The two most important SMTP implementations in Python (smtpd and Twisted Mail) 
+The two most important SMTP implementations in Python (smtpd and Twisted Mail)
 both use an asynchronous architecture so they can serve multiple connections at
 the same time without the need to start multiple processes or threads. Because
-of this they can avoid the increased overall complexity due to locking issues 
+of this they can avoid the increased overall complexity due to locking issues
 and can save some resources (creating a process may be costly).
 
 However there are some drawbacks with the asynchronous approach:
 
 * SMTP servers are not necessarily I/O bound. Some operations like spam scanning
   or other message checks may eat quite a lot of CPU. With Python you need to
-  use multiple processes if you really want to utilize multiple CPUs due to the 
+  use multiple processes if you really want to utilize multiple CPUs due to the
   `Global Interpreter Lock <http://en.wikipedia.org/wiki/Global_Interpreter_Lock>`_.
 * All libraries must be able to deal with the asynchronous pattern otherwise you
-  risk to block all connections at the same time. Many programmers are not 
-  familiar with this pattern so most libraries do not support this. This is 
-  especially true for most of Python's DB api implementations which is why 
+  risk to block all connections at the same time. Many programmers are not
+  familiar with this pattern so most libraries do not support this. This is
+  especially true for most of Python's DB api implementations which is why
   `Twisted implemented its own asynchronous DB layer <http://twistedmatrix.com/projects/core/documentation/howto/rdbms.html>`_.
   Unfortunately by using this layer you have to use plain SQL, because the most
-  popular ORMs like `SQLAlchemy <http://www.sqlalchemy.org/>`_ do not support 
+  popular ORMs like `SQLAlchemy <http://www.sqlalchemy.org/>`_ do not support
   their layer.
 
-Given these conditions IMHO it looks like a bad design choice to use an 
-asynchronous architecture for a SMTP server library which should be easily 
+Given these conditions IMHO it looks like a bad design choice to use an
+asynchronous architecture for a SMTP server library which should be easily
 hackable to handle even uncommon cases.
 
 
 Components
 ***********
 
-pymta consists of several main components (classes) which may be important to 
+pymta consists of several main components (classes) which may be important to
 know.
 
 PythonMTA
 =========
 
-The PythonMTA is the main server component which listens on a certain port for 
-new connections. There should be only one instance of this object. When a new 
+The PythonMTA is the main server component which listens on a certain port for
+new connections. There should be only one instance of this object. When a new
 connection is received, the PythonMTA spawns WorkerProcess (if you have the
-multiprocessing module installed) which triggers a SMTPCommand parser that 
-handles all the SMTP communitcation. When a message was submitted successfully, 
+multiprocessing module installed) which triggers a SMTPCommand parser that
+handles all the SMTP communitcation. When a message was submitted successfully,
 the new_message_accepted() method of your IMessageDeliverer will be called so it
 is in charge of actually doing something with the message.
 
 You can instantiate a new server like that::
 
     from pymta import PythonMTA, BlackholeDeliverer
-    
+
     if __name__ == '__main__':
         # SMTP server will listen on localhost/port 8025
         server = PythonMTA('localhost', 8025, BlackholeDeliverer())
@@ -211,16 +211,16 @@ Here is a short example how you can implement a custom behavior that checks the
 HELO command given by the client::
 
     def accept_helo(self, helo_string, message):
-        # pymta will return the default error message for the given command if 
+        # pymta will return the default error message for the given command if
         # you just return False
         return False
-        
-        # This will send out a '553 Bad helo string' and the command is 
+
+        # This will send out a '553 Bad helo string' and the command is
         # rejected. pymta won't send any additional reply because you did that
         # already.
         return (False, (553, 'Bad helo string'))
-        
-        # This is basically the same as above but now it will trigger a 
+
+        # This is basically the same as above but now it will trigger a
         # multi-line SMTP response:
         # 553-Bad helo string
         # 553 Evil IP
@@ -244,11 +244,11 @@ Deliverers
 Message
 =======
 
-The Message is a data object contains all information about a message sent by 
-a client. This includes not only the actual RFC822 message contents but also 
-information about the SMTP envelope, the peer and the helo string used. The 
-information is filled as the client sends some commands so not all information 
-may be available at any time (e.g. the msg_data not available before the client 
+The Message is a data object contains all information about a message sent by
+a client. This includes not only the actual RFC822 message contents but also
+information about the SMTP envelope, the peer and the helo string used. The
+information is filled as the client sends some commands so not all information
+may be available at any time (e.g. the msg_data not available before the client
 actually sent the RFC822 message).
 
 
@@ -262,12 +262,12 @@ the remote port.
 SMTPSession
 ===========
 
-This class actually implements the most complicated part of the SMTP state 
+This class actually implements the most complicated part of the SMTP state
 machine and is responsible for calling the policy. If you want to extend the
 functionality or need to implement some custom behavior which is beyond what you
 can do using Policies, check this class.
 
-The SMTP state machine is quite strict currently but I consider this a feature 
+The SMTP state machine is quite strict currently but I consider this a feature
 and not something I'll try to improve in the near future.
 
 
@@ -275,7 +275,7 @@ Unit Test Utility Classes
 =========================
 
 pymta was created to ease testing SMTP communication without the need to set up
-an external SMTP server. While writing tests for other applications I created 
+an external SMTP server. While writing tests for other applications I created
 some utility classes which are probably helpful in your tests as well...
 
 .. autoclass:: pymta.test_util.BlackholeDeliverer
@@ -295,9 +295,9 @@ some utility classes which are probably helpful in your tests as well...
 Example SMTP server application
 ===============================
 
-In the examples directory you find a pymta-based implementation of a debugging 
+In the examples directory you find a pymta-based implementation of a debugging
 server that behaves like `Python's DebuggingServer <http://docs.python.org/library/smtpd.html#debuggingserver-objects>`_:
-All received messages will be printed to STDOUT. Hopefully it can serve as a 
+All received messages will be printed to STDOUT. Hopefully it can serve as a
 short reference how to write very simple pymta-based servers too.
 
 
@@ -307,10 +307,10 @@ Speed
 
 If you want to use pymta for a real SMTP server, you should not be concerned too
 much about speed. If you go really for a high-volume setup with several million
-messages per day and hundreds of simultaneous connections, you should tune one 
+messages per day and hundreds of simultaneous connections, you should tune one
 of the well-known SMTP servers like Exim, Postfix or sendmail to get the maximum
-performance. However, I measured theoretical peak performance using 
-`Postal 0.70 <http://doc.coker.com.au/projects/postal/>`_ to give you some 
+performance. However, I measured theoretical peak performance using
+`Postal 0.70 <http://doc.coker.com.au/projects/postal/>`_ to give you some
 theoretical figures.
 
 Environment and benchmark settings:
@@ -321,15 +321,15 @@ Environment and benchmark settings:
 
 With that configuration I got something between 1540-2270 messages per minute
 (median 1879 messages) which is actually quite low. Many real SMTP servers would
-deliver something between 5,000-10,000 messages per minute in a comparable 
+deliver something between 5,000-10,000 messages per minute in a comparable
 setting [#]_. During my measurements the system load was barely noticable (below
-5%) so I guess most of the time is lost waiting for locks. Using a really fast 
+5%) so I guess most of the time is lost waiting for locks. Using a really fast
 IPC mechanism or a custom PythonMTA implementation that uses the os.fork would
 probably increase the throughput by quite easily.
 
-.. [#] However, as soon you add some more complicated database queries or spam 
+.. [#] However, as soon you add some more complicated database queries or spam
        and virus checks to that, the real throughput will decrease dramatically
-       (even if the scanning takes only 0.1 seconds per message you won't 
+       (even if the scanning takes only 0.1 seconds per message you won't
        exceed 600 messages per minute). In real setups the bare SMTP speed does
        not matter that much.
 
@@ -337,22 +337,21 @@ probably increase the throughput by quite easily.
 License Overview
 ================
 
-pymta itself is licensed under the very liberal `MIT license <http://creativecommons.org/licenses/MIT/>`_ 
+pymta itself is licensed under the very liberal `MIT license <http://creativecommons.org/licenses/MIT/>`_
 (see COPYING.txt in the source archive) so there are virtually no restrictions
 where you can integrate the code.
 
-However, pymta depends on some (few) other packages which come with different 
-licenses. In order to ease license auditing, I'll list the other licenses here 
+However, pymta depends on some (few) other packages which come with different
+licenses. In order to ease license auditing, I'll list the other licenses here
 (no guarantees though, check yourself before you trust):
 
-* `Python <http://www.python.org>`_ uses the 
-  `Python Software Foundation License 2 <http://www.python.org/download/releases/2.4.2/license/>`_ 
+* `Python <http://www.python.org>`_ uses the
+  `Python Software Foundation License 2 <http://www.python.org/download/releases/2.4.2/license/>`_
   which is a BSD-style license.
-* The `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_ 
+* The `multiprocessing <http://docs.python.org/library/multiprocessing.html>`_
   uses a `3-clause BSD license <http://creativecommons.org/licenses/BSD/>`_.
 * `pycerberus <http://www.schwarz.eu/opensource/projects/pycerberus>`_ uses
   the MIT license, just like pymta.
 
 I believe that all licenses are GPL compatible and do not require you to publish
 your code if you don't like to.
-

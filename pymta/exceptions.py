@@ -3,7 +3,6 @@
 
 from __future__ import print_function, unicode_literals
 
-
 from pymta.api import PyMTAException
 
 
@@ -29,5 +28,3 @@ class InvalidParametersError(SMTPViolationError):
     def __init__(self, parameter=None, *args, **kwargs):
         super(InvalidParametersError, self).__init__(*args, **kwargs)
         self.parameter = parameter
-
-

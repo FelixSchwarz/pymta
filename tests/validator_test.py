@@ -3,9 +3,8 @@
 
 from __future__ import print_function, unicode_literals
 
-from pycerberus.errors import InvalidDataError
 import pytest
-
+from pycerberus.errors import InvalidDataError
 from pymta.validation import SMTPEmailValidator
 
 
@@ -29,4 +28,3 @@ def test_reject_invalid_email_addresses():
         _process('foo@@example.com')
     with pytest.raises(InvalidDataError):
         _process('foo@example..com')
-

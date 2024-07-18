@@ -198,7 +198,3 @@ class IMTAPolicy(object):
 class PyMTAException(Exception):
     """Base class for all exceptions used in pymta."""
     pass
-
-
-
-

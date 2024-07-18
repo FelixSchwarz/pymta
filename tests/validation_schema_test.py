@@ -5,10 +5,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 from unittest import TestCase
 
+import pytest
 from pycerberus.errors import InvalidDataError
 from pycerberus.validators import StringValidator
-import pytest
-
 from pymta.compat import b64encode
 from pymta.validation import AuthPlainSchema, MailFromSchema, SMTPCommandArgumentsSchema
 

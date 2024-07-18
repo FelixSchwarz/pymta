@@ -3,16 +3,15 @@
 
 from __future__ import print_function, unicode_literals
 
-import socket
 import smtplib
+import socket
 import time
 
-from dotmap import DotMap
 import pytest
-
+from dotmap import DotMap
 from pymta.api import IMTAPolicy
 from pymta.compat import b, b64encode
-from pymta.test_util import DebuggingMTA, DummyAuthenticator, SMTPTestCase, SMTPTestHelper
+from pymta.test_util import DummyAuthenticator, SMTPTestHelper
 
 
 rfc822_msg = 'Subject: Test\n\nJust testing...'

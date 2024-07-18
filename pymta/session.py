@@ -7,10 +7,11 @@ import sys
 
 from pycerberus import InvalidDataError
 
-from pymta.compat import basestring, b64encode
+from pymta.compat import b64encode, basestring
 from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
 from pymta.statemachine import StateMachine, StateMachineError
+
 from .validation import *
 
 
@@ -389,7 +390,7 @@ class SMTPSession(object):
         username = validated_data['username']
         password = validated_data['password']
 
-        decision, response_sent = self.is_allowed('accept_auth_plain', username, password, self._message)
+        decision, response_sent = self.is_allowed('accept_auth_plain', username, password, self._message)  # noqa: E501 (line-too-long)
         if not decision:
             raise PolicyDenial(response_sent)
         elif not response_sent:
@@ -517,5 +518,3 @@ class SMTPSession(object):
         self._message = Message(peer=self._message.peer,
                                 smtp_helo=self._message.smtp_helo)
         self.reply(250, 'Reset OK')
-
-

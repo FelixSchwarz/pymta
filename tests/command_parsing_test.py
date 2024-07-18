@@ -7,7 +7,7 @@ from unittest import TestCase
 
 from pymta.api import IMTAPolicy
 from pymta.command_parser import SMTPCommandParser
-from pymta.compat import basestring, b64encode
+from pymta.compat import b64encode, basestring
 from pymta.test_util import BlackholeDeliverer, DummyAuthenticator, MockChannel
 
 
@@ -44,9 +44,10 @@ class CommandParsingTest(TestCase):
         assert self.parse_command('HELO   foo.example.com   ') == ('HELO', 'foo.example.com')
 
     def test_parse_commands_with_colons(self):
-        assert self.parse_command('MAIL FROM: foo@example.com') == ('MAIL FROM', 'foo@example.com')
-        assert self.parse_command('MAIL FROM:foo@example.com') == ('MAIL FROM', 'foo@example.com')
-        assert self.parse_command('MAIL FROM:  foo@example.com   ') == ('MAIL FROM', 'foo@example.com')
+        mail_from_foo = ('MAIL FROM', 'foo@example.com')
+        assert self.parse_command('MAIL FROM: foo@example.com') == mail_from_foo
+        assert self.parse_command('MAIL FROM:foo@example.com') == mail_from_foo
+        assert self.parse_command('MAIL FROM:  foo@example.com   ') == mail_from_foo
         assert self.parse_command('RCPT TO:foo@example.com, bar@example.com') == \
             ('RCPT TO', 'foo@example.com, bar@example.com')
 

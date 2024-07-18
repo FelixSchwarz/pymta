@@ -32,5 +32,3 @@ class Peer(object):
     def __repr__(self):
         return '%s(%s, %s)' % (self.__class__.__name__, self.remote_ip,
                                self.remote_port)
-
-

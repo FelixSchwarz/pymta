@@ -3,12 +3,8 @@
 
 from __future__ import print_function, unicode_literals
 
-from unittest import TestCase
-
 import pytest
-
-from pymta.statemachine import StateMachine, StateMachineDefinitionError, \
-    StateMachineError
+from pymta.statemachine import StateMachine, StateMachineDefinitionError, StateMachineError
 
 
 def test_can_initialize_statemachine():
@@ -179,4 +175,3 @@ def test_can_also_specify_negative_flag_checks_for_transitions():
     with pytest.raises(StateMachineError):
         state.execute('use_tls')
     state.execute('authenticate')
-

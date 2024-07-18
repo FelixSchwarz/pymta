@@ -9,7 +9,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import sys
 
-from pymta import PythonMTA, IMessageDeliverer
+from pymta import IMessageDeliverer, PythonMTA
 
 
 class STDOUTDeliverer(IMessageDeliverer):
@@ -43,4 +43,3 @@ if __name__ == '__main__':
         server.serve_forever()
     except KeyboardInterrupt:
         pass
-

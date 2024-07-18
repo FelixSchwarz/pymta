@@ -3,11 +3,12 @@
 
 from __future__ import print_function, unicode_literals
 
-from threading import Event
 import socket
 import time
+from threading import Event
 
 from pymta.command_parser import WorkerProcess
+
 
 __all__ = ['PythonMTA']
 
@@ -118,5 +119,3 @@ class PythonMTA(object):
         self._queue.put(None)
         self._shutdown_server.set()
         # TODO: Looks like we're quitting too fast here.
-
-

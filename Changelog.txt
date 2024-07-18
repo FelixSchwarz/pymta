@@ -23,7 +23,7 @@ Changelog for pymta
 
 
 0.5.2 (12.06.2010)
-- Fix bug - detect of command/message also when the terminator is sent in 
+- Fix bug - detect of command/message also when the terminator is sent in
   multiple packages (fixes manual message submission with telnet)
 
 
@@ -32,7 +32,7 @@ Changelog for pymta
 
 
 0.5.0 (07.04.2010)
-- Dropped dependency to repoze.workflow because the module added a lot of 
+- Dropped dependency to repoze.workflow because the module added a lot of
   dependencies recently (six others in total). The new, custom state machine
   also supports flags and conditions which suits SMTP very much.
 - Added dependency to pycerberus (>= 0.3.1) to validate all sent parameters
@@ -40,7 +40,7 @@ Changelog for pymta
 - All inputs from peers is now validated
 - relaxed restrictions for the HELO/EHLO parameter (as real world clients don't
   send real host names)
-- Fixed bug - ESMTP session switched back to plain SMTP after the first mail 
+- Fixed bug - ESMTP session switched back to plain SMTP after the first mail
   was sent
 - Fixed bug - Hang after sending data to a broken connection
 
@@ -62,7 +62,7 @@ Changelog for pymta
    memory if they will be rejected anyway (denial of service prevention)
  - API documentation is now auto-generated
  - Renamed DefaultMTAPolicy to IMTAPolicy and moved all interfaces to pymta.api
- - Added the debugging_server as an extremely simple example of a pymta-based 
+ - Added the debugging_server as an extremely simple example of a pymta-based
    server
 
 
@@ -75,4 +75,3 @@ Changelog for pymta
 
 0.2 (16.12.2008)
  - initial release
-

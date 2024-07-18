@@ -15,8 +15,8 @@ import random
 import socket
 import threading
 import time
-from unittest import TestCase
 import warnings
+from unittest import TestCase
 
 from pycerberus.errors import InvalidDataError
 
@@ -155,7 +155,8 @@ class SMTPTestCase(TestCase):
     Please make sure that you call the super method for setUp and tearDown."""
 
     def setUp(self):
-        warnings.warn(f'SMTPTestCase is deprecated, use SMTPTestHelper instead', DeprecationWarning, stacklevel=2)
+        warn_msg = 'SMTPTestCase is deprecated, use SMTPTestHelper instead'
+        warnings.warn(warn_msg, DeprecationWarning, stacklevel=2)
         super(SMTPTestCase, self).setUp()
         self._helper = SMTPTestHelper()
         self._helper.start_mta()
@@ -287,7 +288,8 @@ class CommandParserHelper(object):
     def send_valid(self, command, data=None):
         return self.send(command, data=data, expected_first_digit=2)
 
-    def send_auth_login(self, username_b64=None, password_b64=None, expect_username_error=False, reduce_roundtrips=True):
+    def send_auth_login(self, username_b64=None, password_b64=None,
+                        expect_username_error=False, reduce_roundtrips=True):
         previous_replies = len(self.command_parser.replies)
         expected_code = 334 if not expect_username_error else 501
         if reduce_roundtrips:

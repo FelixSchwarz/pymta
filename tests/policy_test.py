@@ -9,7 +9,6 @@ from pymta.compat import b64encode
 from pymta.test_util import CommandParserHelper, DummyAuthenticator
 
 
-
 def test_connection_can_be_rejected():
     class FalsePolicy(IMTAPolicy):
         def accept_new_connection(self, peer):
@@ -130,4 +129,3 @@ def test_server_deals_gracefully_with_double_close_because_of_faulty_policy():
     _cp.session.handle_input('HELO', 'foo.example.com')
     assert len(_cp.command_parser.replies) == number_replies_before
     assert not _cp.command_parser.open
-
