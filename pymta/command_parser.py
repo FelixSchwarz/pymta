@@ -346,7 +346,8 @@ class WorkerProcess(object):
             return
         assert self.is_connected()
         try:
-            self._connection.sendall(data.encode('ascii'))
+            # replies might contain (invalid) non-ASCII input sent by the client
+            self._connection.sendall(data.encode('ascii', 'backslashreplace'))
         except socket.error:
             self.close()
             self._ignore_write_operations = True

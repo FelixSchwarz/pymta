@@ -155,6 +155,23 @@ def test_can_receive_message_with_8bit_body(mtx_ctx):
     assert received_msg.msg_data.encode('latin-1') == msg
 
 
+def test_rejects_non_ascii_characters_in_commands(mtx_ctx):
+    """Check that the MTA does not crash if a reply contains the client's
+    (invalid) non-ASCII input."""
+    connection = mtx_ctx.connection
+    # fail instead of blocking forever if the MTA crashed
+    connection.sock.settimeout(2)
+    connection.ehlo()
+    # smtplib refuses to send non-ASCII commands
+    connection.send('MAIL FROM:<gr\xfc\xdfe@example.com>\r\n'.encode('utf-8'))
+    code, reply_text = connection.getreply()
+    assert code == 501
+    assert b'gr\\xc3\\xbc\\xc3\\x9fe' in reply_text
+
+    code, reply_text = connection.noop()
+    assert code == 250
+
+
 @pytest.fixture
 def mtx_ctx_restricted_size_policy():
     class RestrictedSizePolicy(IMTAPolicy):
