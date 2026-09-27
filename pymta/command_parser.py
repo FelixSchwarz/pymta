@@ -252,6 +252,9 @@ class WorkerProcess(object):
         while True:
             try:
                 token = self._queue.get(timeout=seconds)
+                if token is None:
+                    # put back the shutdown request so other workers see it too
+                    self._queue.put(None)
                 break
             except queue.Empty:
                 pass
