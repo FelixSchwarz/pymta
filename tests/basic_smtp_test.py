@@ -5,7 +5,6 @@ from __future__ import print_function, unicode_literals
 
 import smtplib
 import socket
-import time
 
 import pytest
 from dotmap import DotMap
@@ -180,7 +179,7 @@ def service_is_available(mtx_ctx, timeout=2):
     # On a normal system we should be able to reconnect after a dropped
     # connection within two seconds under all circumstances.
     old_default = socket.getdefaulttimeout()
-    socket.setdefaulttimeout(2)
+    socket.setdefaulttimeout(timeout)
     try:
         try:
             mtx_ctx.connection.connect(mtx_ctx.hostname, mtx_ctx.listen_port)
@@ -205,36 +204,25 @@ def test_workerprocess_detects_closed_connections_when_reading(mtx_ctx):
 
 
 @pytest.fixture
-def mtx_ctx_waiting_policy():
-    # Basically the problem also occurs without waiting - however sleeping a
-    # bit increases the likelyhood to trigger to problem. We need to make
-    # sure that the server writes to a already closed TCP connection.
-    class WaitingPolicy(IMTAPolicy):
+def mtx_ctx_rejecting_policy():
+    class RejectingPolicy(IMTAPolicy):
         def accept_helo(self, helo_string, message):
-            is_first_time = getattr(self, 'is_first_time', False)
-            if is_first_time:
-                time.sleep(1)
-            # Also the socket will buffer some data - make sure the system
-            # actually writes data to the socket so we get an exception.
+            # multiline reply so the server has to send more data to the client
             return (False, (552, ('Go away',)*10))
 
-    for item in _smtp_ctx(policy_class=WaitingPolicy):
+    for item in _smtp_ctx(policy_class=RejectingPolicy):
         yield item
 
 
-def test_workerprocess_detects_closed_connections_when_writing(mtx_ctx_waiting_policy):
+def test_workerprocess_detects_closed_connections_when_writing(mtx_ctx_rejecting_policy):
     """Check that the WorkerProcess gracefully handles connections which are
-    closed without QUIT - remaining output is suppressed. This can happen
-    due to network problems or unfriendly clients."""
-
-    _ctx = mtx_ctx_waiting_policy
+    closed without QUIT right after sending a command. This can happen
+    due to network problems or unfriendly clients.
+    The actual handling of write errors is tested in "worker_process_test.py"
+    because the timing of write errors is not deterministic."""
+    _ctx = mtx_ctx_rejecting_policy
     # don't wait for an answer as .helo() does
     _ctx.connection.putcmd('helo', 'foo')
     _ctx.connection.close()
 
-    for _ in range(10):
-        time.sleep(0.05)
-        if service_is_available(_ctx, timeout=0.01):
-            break
-    else:
-        raise AssertionError('Service is not available after 0.5s')
+    assert service_is_available(_ctx)
