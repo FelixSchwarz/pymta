@@ -132,3 +132,12 @@ class CommandParsingTest(TestCase):
         self.send('\r\n.\r\n')
         self.assert_no_messages_received()
         assert self.last_reply().startswith('552 ')
+
+    def test_sends_multiline_reply_at_once(self):
+        """Check that all lines of a multiline reply are written to the channel
+        at once (otherwise the client might have to wait for the last line due
+        to Nagle's algorithm)."""
+        nr_replies = len(self.replies())
+        self.parser.multiline_push(250, ('foo', 'bar', 'baz'))
+        assert len(self.replies()) == nr_replies + 1
+        assert self.last_reply() == '250-foo\r\n250-bar\r\n250 baz\r\n'

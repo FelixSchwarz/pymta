@@ -98,10 +98,12 @@ class SMTPCommandParser(object):
     def multiline_push(self, code, lines):
         """Send a multi-message to the peer (using the correct SMTP line
         terminators (usually only called from the SMTPSession)."""
-        for line in lines[:-1]:
-            answer = '%s-%s' % (code, line)
-            self.push(answer)
-        self.push(code, lines[-1])
+        reply_lines = ['%s-%s' % (code, line) for line in lines[:-1]]
+        reply_lines.append('%s %s' % (code, lines[-1]))
+        # Send the complete reply at once: Otherwise the client might receive
+        # the last line(s) only after a delay of ~40ms (Nagle's algorithm in
+        # combination with delayed ACKs).
+        self._channel.write(''.join(map(self._add_line_terminator, reply_lines)))
 
     def push(self, code, msg=None):
         """Send a message to the peer (using the correct SMTP line terminators
@@ -110,10 +112,12 @@ class SMTPCommandParser(object):
             msg = str(code)
         else:
             msg = '%s %s' % (code, msg)
+        self._channel.write(self._add_line_terminator(msg))
 
-        if not msg.endswith(self.LINE_TERMINATOR):
-            msg += self.LINE_TERMINATOR
-        self._channel.write(msg)
+    def _add_line_terminator(self, line):
+        if not line.endswith(self.LINE_TERMINATOR):
+            line += self.LINE_TERMINATOR
+        return line
 
     def input_exceeds_limits(self):
         """Called from the underlying transport layer if the client input
