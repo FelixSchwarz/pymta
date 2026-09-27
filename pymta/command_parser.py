@@ -338,7 +338,7 @@ class WorkerProcess(object):
             return
         assert self.is_connected()
         try:
-            self._connection.send(data.encode('ascii'))
+            self._connection.sendall(data.encode('ascii'))
         except socket.error:
             self.close()
             self._ignore_write_operations = True
