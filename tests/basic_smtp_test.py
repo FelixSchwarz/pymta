@@ -142,6 +142,19 @@ def test_transparency_support_enabled(mtx_ctx):
     assert received_msg.msg_data == msg
 
 
+def test_can_receive_message_with_8bit_body(mtx_ctx):
+    """Check that the MTA accepts messages with 8-bit data. The original bytes
+    are available via ".encode('latin-1')"."""
+    msg = (rfc822_msg + '\nGr\xfc\xdfe').encode('utf-8')
+    mtx_ctx.connection.sendmail('from@example.com', 'foo@example.com', msg)
+    mtx_ctx.connection.quit()
+
+    queue = mtx_ctx.mta.get_received_messages()
+    assert queue.qsize() == 1
+    received_msg = queue.get()
+    assert received_msg.msg_data.encode('latin-1') == msg
+
+
 @pytest.fixture
 def mtx_ctx_restricted_size_policy():
     class RestrictedSizePolicy(IMTAPolicy):

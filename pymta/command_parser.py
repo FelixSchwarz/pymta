@@ -318,7 +318,11 @@ class WorkerProcess(object):
                     raise ClientDisconnectedError()
                 if not data:
                     raise ClientDisconnectedError()
-                self._chatter.process_new_data(data.decode('ascii'))
+                # SMTP commands are ASCII-only but message bodies might contain
+                # 8-bit data. "latin-1" can decode every byte (even if a
+                # multi-byte character was split across two "recv()" calls) and
+                # the original data can be restored with ".encode('latin-1')".
+                self._chatter.process_new_data(data.decode('latin-1'))
         except ClientDisconnectedError:
             if self.is_connected():
                 self.close()
