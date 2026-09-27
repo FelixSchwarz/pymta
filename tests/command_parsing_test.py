@@ -141,3 +141,25 @@ class CommandParsingTest(TestCase):
         self.parser.multiline_push(250, ('foo', 'bar', 'baz'))
         assert len(self.replies()) == nr_replies + 1
         assert self.last_reply() == '250-foo\r\n250-bar\r\n250 baz\r\n'
+
+    def test_auth_login_with_invalid_base64_returns_to_command_mode(self):
+        self.parser = self.init_command_parser(authenticator=DummyAuthenticator())
+        self.send('EHLO foo.example.com\r\n')
+        self.send('AUTH LOGIN\r\n')
+        self.send(b64encode('foo') + '\r\n')
+        # invalid base64 (missing padding)
+        self.send('foo\r\n')
+        assert self.last_reply().startswith('501 ')
+
+        self.send('NOOP\r\n')
+        assert self.last_reply() == '250 OK\r\n'
+
+    def test_auth_login_without_authenticator_returns_to_command_mode(self):
+        self.send('EHLO foo.example.com\r\n')
+        self.send('AUTH LOGIN\r\n')
+        self.send(b64encode('foo') + '\r\n')
+        self.send(b64encode('foo') + '\r\n')
+        assert self.last_reply() == '535 AUTH not available\r\n'
+
+        self.send('NOOP\r\n')
+        assert self.last_reply() == '250 OK\r\n'

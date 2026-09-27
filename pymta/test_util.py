@@ -15,8 +15,6 @@ import threading
 import warnings
 from unittest import TestCase
 
-from pycerberus.errors import InvalidDataError
-
 from .api import IAuthenticator, IMessageDeliverer, IMTAPolicy
 from .compat import b64encode, queue
 from .mta import PythonMTA
@@ -298,14 +296,9 @@ class CommandParserHelper(object):
         return self.last_reply()
 
     def _handle_auth_credentials(self, b64_data):
-        try:
-            # in production the (non-mock) CommandParser would call this method
-            # instead of "session.handle_input()"
-            self.session.handle_auth_credentials(b64_data)
-        except InvalidDataError as e:
-            # emulate code in ".handle_input()"
-            reply = (501, e.msg())
-            self.command_parser.replies.append(reply)
+        # in production the (non-mock) CommandParser would call this method
+        # instead of "session.handle_input()"
+        self.session.handle_auth_credentials(b64_data)
         return self.last_reply()
 
     def close_connection(self):

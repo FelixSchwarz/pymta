@@ -414,7 +414,14 @@ class SMTPSession(object):
     def handle_auth_credentials(self, input_):
         # necessary so "self.validate()" works, usually done via ".handle_input()"
         self._command_arguments = input_
-        validated_parameters = self.validate(AuthLoginSchema)
+        try:
+            validated_parameters = self.validate(AuthLoginSchema)
+        except InvalidDataError as e:
+            # RFC 4954: "If the server cannot [BASE64] decode any client
+            # response, it MUST reject the AUTH command with a 501 reply."
+            self._end_auth_login()
+            self.reply(501, e.msg())
+            return
         decoded_input = validated_parameters['username']
 
         username = self._message.unvalidated_input.get('username')
@@ -424,9 +431,16 @@ class SMTPSession(object):
             self.reply(334, b64encode(next_))
         else:
             password = decoded_input
-            del self._message.unvalidated_input['username']
-            self._command_parser.switch_to_command_mode()
-            self._check_password(username, password)
+            self._end_auth_login()
+            try:
+                self._check_password(username, password)
+            except InvalidParametersError:
+                # reply was sent already
+                pass
+
+    def _end_auth_login(self):
+        self._message.unvalidated_input.pop('username', None)
+        self._command_parser.switch_to_command_mode()
 
     def _check_size_restriction(self, extensions):
         announced_size = extensions.get('size')
