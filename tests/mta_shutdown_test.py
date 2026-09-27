@@ -3,7 +3,6 @@
 
 from __future__ import print_function, unicode_literals
 
-import random
 import smtplib
 import time
 
@@ -42,11 +41,11 @@ def test_shutdown_after_smtp_session():
 
 @pytest.mark.parametrize('local_address', ['', '0.0.0.0'])
 def test_shutdown_when_listening_on_all_interfaces(local_address):
-    listen_port = random.randint(8000, 40000)
-    mta = DebuggingMTA(local_address, listen_port, deliverer_class=BlackholeDeliverer)
+    mta = DebuggingMTA(local_address, 0, deliverer_class=BlackholeDeliverer)
     mta_thread = MTAThread(mta)
     mta_thread.start()
-    SMTPTestHelper()._try_to_connect_to_mta('127.0.0.1', listen_port)
+    assert mta.wait_until_ready(timeout_seconds=5)
+    listen_port = mta.server_address[1]
     _send_message('127.0.0.1', listen_port)
 
     _assert_fast_shutdown(mta_thread.stop, mta_thread)

@@ -47,6 +47,7 @@ class PythonMTA(object):
         self._processes = []
         self._shutdown_server = Event()
         self._server_address = None
+        self._server_ready = Event()
 
     def _try_to_bind_to_socket(self, server_socket):
         tries = 0
@@ -106,6 +107,9 @@ class PythonMTA(object):
         self._queue.put(True)
         server_socket = self._build_server_socket()
         self._server_address = server_socket.getsockname()
+        # The server socket is listening already so new connections will be
+        # accepted even if the workers were not started yet.
+        self._server_ready.set()
         if use_multiprocessing:
             for i in range(5):
                 p = self._start_new_worker_process(server_socket)
@@ -116,9 +120,22 @@ class PythonMTA(object):
                 process.join()
         else:
             run_worker(*self._get_child_args(server_socket))
+        self._server_ready.clear()
         self._server_address = None
         server_socket.close()
         self._queue = None
+
+    def wait_until_ready(self, timeout_seconds=None):
+        """Block until the server accepts new connections. Returns False if
+        the server was not ready within timeout_seconds."""
+        return self._server_ready.wait(timeout_seconds)
+
+    @property
+    def server_address(self):
+        """The address (host, port) of the server socket or None if the
+        server is not running. This is useful if the MTA was started with
+        port 0 (the operating system selects a free port)."""
+        return self._server_address
 
     def shutdown_server(self, timeout_seconds=None):
         """This method notifies the server that it should stop listening for

@@ -11,10 +11,7 @@ tests using pymta:
 
 from __future__ import print_function, unicode_literals
 
-import random
-import socket
 import threading
-import time
 import warnings
 from unittest import TestCase
 
@@ -96,7 +93,9 @@ class MTAThread(threading.Thread):
 class SMTPTestHelper(object):
     def __init__(self, policy_class=IMTAPolicy, authenticator_class=None):
         self.hostname = 'localhost'
-        self.listen_port = random.randint(8000, 40000)
+        # the operating system selects a free port, the actual port is known
+        # after the MTA was started.
+        self.listen_port = 0
         self.deliverer = BlackholeDeliverer
         self.mta = DebuggingMTA(
             self.hostname,
@@ -108,32 +107,19 @@ class SMTPTestHelper(object):
         self.mta_thread = None
 
     def start_mta(self, wait_until_ready=True):
-        """Starts the MTA in a separate thread."""
+        """Starts the MTA in a separate thread and returns the tuple
+        (hostname, port) of the MTA.
+        The method always waits until the MTA accepts new connections because
+        the port is not known before (wait_until_ready is only accepted for
+        backwards compatibility)."""
         if self.mta_thread is not None:
             self.stop_mta()
         self.mta_thread = MTAThread(self.mta)
         self.mta_thread.start()
-        if wait_until_ready:
-            self._try_to_connect_to_mta(self.hostname, self.listen_port)
+        if not self.mta.wait_until_ready(timeout_seconds=5):
+            raise AssertionError('MTA did not start within 5 seconds')
+        self.listen_port = self.mta.server_address[1]
         return (self.hostname, self.listen_port)
-
-    def _try_to_connect_to_mta(self, host, port):
-        tries = 0
-        while tries < 10:
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect((host, port))
-            except socket.error:
-                try:
-                    sock.close()
-                except socket.error:
-                    pass
-                tries += 1
-                time.sleep(0.1)
-            else:
-                sock.close()
-                return
-        raise AssertionError('MTA not reachable on port %d' % (port,))
 
     def stop_mta(self):
         if self.mta_thread is not None:
