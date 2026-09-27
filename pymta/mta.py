@@ -15,9 +15,9 @@ __all__ = ['PythonMTA']
 
 
 def run_worker(queue, server_socket, deliverer_class, policy_class,
-                 authenticator_class):
+                 authenticator_class, shutdown_event=None):
     child = WorkerProcess(queue, server_socket, deliverer_class, policy_class,
-                          authenticator_class)
+                          authenticator_class, shutdown_event=shutdown_event)
     child.run()
 
 
@@ -46,6 +46,7 @@ class PythonMTA(object):
         self._queue = None
         self._processes = []
         self._shutdown_server = Event()
+        self._server_address = None
 
     def _try_to_bind_to_socket(self, server_socket):
         tries = 0
@@ -74,7 +75,8 @@ class PythonMTA(object):
 
     def _get_child_args(self, server_socket):
         return (self._queue, server_socket, self._deliverer_class,
-                self._policy_class, self._authenticator_class)
+                self._policy_class, self._authenticator_class,
+                self._shutdown_server)
 
     def _start_new_worker_process(self, server_socket):
         """Start a new child worker process which will listen on the given
@@ -87,28 +89,34 @@ class PythonMTA(object):
     def serve_forever(self, use_multiprocessing=True):
         if use_multiprocessing:
             try:
-                from multiprocessing import Queue
+                from multiprocessing import Event, Queue
             except ImportError:
                 use_multiprocessing = False
         if not use_multiprocessing:
+            from threading import Event
+
             from pymta.compat import queue
             Queue = queue.Queue
 
-        self._shutdown_server.clear()
+        # The worker processes need an event which is shared across processes
+        # if we use multiprocessing.
+        self._shutdown_server = Event()
         self._queue = Queue()
         # Put the initial token in the Queue
         self._queue.put(True)
         server_socket = self._build_server_socket()
+        self._server_address = server_socket.getsockname()
         if use_multiprocessing:
             for i in range(5):
                 p = self._start_new_worker_process(server_socket)
                 self._processes.append(p)
-            while not self._shutdown_server.isSet():
-                time.sleep(1)
+            while not self._shutdown_server.is_set():
+                self._shutdown_server.wait(1)
             for process in self._processes:
                 process.join()
         else:
             run_worker(*self._get_child_args(server_socket))
+        self._server_address = None
         server_socket.close()
         self._queue = None
 
@@ -118,4 +126,22 @@ class PythonMTA(object):
         method will block for this many seconds at most."""
         self._queue.put(None)
         self._shutdown_server.set()
+        self._wake_up_worker()
         # TODO: Looks like we're quitting too fast here.
+
+    def _wake_up_worker(self):
+        """Connect to the server socket so the worker blocked in "accept()"
+        notices the shutdown request immediately. Otherwise the worker would
+        only notice the shutdown after the socket timeout."""
+        server_address = self._server_address
+        if server_address is None:
+            return
+        host, port = server_address[:2]
+        if host in ('', '0.0.0.0'):
+            host = '127.0.0.1'
+        try:
+            sock = socket.create_connection((host, port), timeout=1)
+        except socket.error:
+            # the worker will notice the shutdown after the socket timeout
+            return
+        sock.close()

@@ -209,9 +209,10 @@ class WorkerProcess(object):
     a line-based protocol)."""
 
     def __init__(self, queue, server_socket, deliverer_class, policy_class=None,
-                 authenticator_class=None):
+                 authenticator_class=None, shutdown_event=None):
         self._queue = queue
         self._server_socket = server_socket
+        self._shutdown_event = shutdown_event
         self._deliverer = self._get_instance_from_class(deliverer_class)
         self._policy = self._get_instance_from_class(policy_class)
         self._authenticator = self._get_instance_from_class(authenticator_class)
@@ -226,22 +227,33 @@ class WorkerProcess(object):
             instance = class_reference()
         return instance
 
+    def _shutdown_requested(self):
+        if self._shutdown_event is not None:
+            return self._shutdown_event.is_set()
+        try:
+            new_token = self._queue.get_nowait()
+        except queue.Empty:
+            return False
+        self._queue.put(new_token)
+        return (new_token is None)
+
     def _wait_for_connection(self):
         while True:
             # We want to check periodically if we need to abort
+            if self._shutdown_requested():
+                return None
             try:
                 connection, remote_address = self._server_socket.accept()
-                break
             except socket.timeout:
-                try:
-                    new_token = self._queue.get_nowait()
-                    self._queue.put(new_token)
-                    if new_token is None:
-                        return None
-                except queue.Empty:
-                    pass
+                continue
             except KeyboardInterrupt:
                 return None
+            # "PythonMTA.shutdown_server()" connects to the server socket so
+            # we don't have to wait for the accept timeout.
+            if self._shutdown_requested():
+                connection.close()
+                return None
+            break
         connection.settimeout(socket.getdefaulttimeout())
         return connection, remote_address
 
