@@ -73,6 +73,13 @@ def test_mail_from_rejects_unknown_extension():
     _cp.send_invalid('mail from', '<foo@example.com> FNORD=INVALID')
     assert _cp.last_server_message() == 'Invalid extension: "FNORD=INVALID"'
 
+def test_mail_from_accepts_null_reverse_path():
+    # RFC 5321, section 4.5.5: bounces are sent with an empty reverse-path
+    _cp = CommandParserHelper()
+    _cp.helo()
+    _cp.send_valid('mail from', '<>')
+    assert _cp.session._message.smtp_from == ''
+
 def helo_and_mail_from(_cp):
     _cp.helo()
     _cp.send_valid('mail from', 'foo@example.com')
@@ -93,6 +100,13 @@ def test_rcpt_to_accepts_a_valid_email_address():
     helo_and_mail_from(_cp)
     _cp.send_valid('rcpt to', 'foo@example.com')
     _cp.send_valid('rcpt to', '<foo@example.com>')
+
+def test_rcpt_to_accepts_postmaster_without_domain():
+    # RFC 5321, section 4.1.1.3
+    _cp = CommandParserHelper()
+    helo_and_mail_from(_cp)
+    _cp.send_valid('rcpt to', '<Postmaster>')
+    assert _cp.session._message.smtp_to == ['Postmaster']
 
 # -------------------------------------------------------------------------
 # AUTH PLAIN

@@ -3,13 +3,19 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import base64
 from unittest import TestCase
 
 import pytest
-from pycerberus.errors import InvalidDataError
-from pycerberus.validators import StringValidator
 from pymta.compat import b64encode
-from pymta.validation import AuthPlainSchema, MailFromSchema, SMTPCommandArgumentsSchema
+from pymta.validation import (
+    AuthLoginSchema,
+    AuthPlainSchema,
+    InvalidDataError,
+    MailFromSchema,
+    RcptToSchema,
+    SMTPCommandArgumentsSchema,
+)
 
 
 class CommandWithoutParametersTest(TestCase):
@@ -26,45 +32,38 @@ class CommandWithoutParametersTest(TestCase):
         assert exc_info.value.msg() == "Syntactically invalid argument(s) 'fnord'"
 
 
+class SingleParameterSchema(SMTPCommandArgumentsSchema):
+    parameter_order = ('parameter',)
+
+
 class CommandWithSingleParameterTest(TestCase):
 
-    def schema(self):
-        schema = SMTPCommandArgumentsSchema()
-        schema.set_internal_state_freeze(False)
-        return schema
-
     def test_accepts_one_parameter(self):
-        schema = self.schema()
-        schema.add('parameter', StringValidator)
-        schema.set_parameter_order(('parameter',))
-        assert schema.process('fnord') == {'parameter': 'fnord'}
+        assert SingleParameterSchema().process('fnord') == {'parameter': 'fnord'}
 
     def test_bails_out_if_no_parameter_is_passed(self):
-        schema = self.schema()
-        schema.add('parameter', StringValidator)
         with pytest.raises(InvalidDataError):
-            schema.process('')
+            SingleParameterSchema().process('')
 
     def test_bails_out_if_more_than_one_parameter_is_passed(self):
-        schema = self.schema()
-        schema.add('parameter', StringValidator)
-        with pytest.raises(InvalidDataError):
-            schema.process('fnord extra')
-
-    def test_can_use_custom_name_for_parameters(self):
-        schema = self.schema()
-        schema.add('helo', StringValidator)
-        schema.set_parameter_order(('helo', ))
-        assert schema.process('localhost') == {'helo': 'localhost'}
+        with pytest.raises(InvalidDataError) as exc_info:
+            SingleParameterSchema().process('fnord extra')
+        assert exc_info.value.msg() == "Syntactically invalid argument(s) 'extra'"
 
     def test_can_specify_parameter_order_declaratively(self):
         class SchemaWithOrderedParameters(SMTPCommandArgumentsSchema):
-            foo = StringValidator()
-            bar = StringValidator()
             parameter_order = ('foo', 'bar')
 
         schema = SchemaWithOrderedParameters()
         assert schema.process('baz qux') == {'foo': 'baz', 'bar': 'qux'}
+
+
+class MailFromSchemaWithBody(MailFromSchema):
+
+    def extensions(self):
+        extensions = super(MailFromSchemaWithBody, self).extensions()
+        extensions['body'] = lambda value: value
+        return extensions
 
 
 class MailFromSchemaTest(TestCase):
@@ -85,6 +84,22 @@ class MailFromSchemaTest(TestCase):
         cmd_parameters = self.process('foo@example.com')
         assert _subdict(cmd_parameters, {'email'}) == {'email': 'foo@example.com'}
 
+    def test_accept_null_reverse_path(self):
+        # RFC 5321, section 4.5.5: bounces use an empty reverse-path
+        assert self.process('<>')['email'] == ''
+
+    def test_ignores_source_route(self):
+        cmd_parameters = self.process('<@relay.example:foo@example.com>')
+        assert cmd_parameters['email'] == 'foo@example.com'
+
+    def test_rejects_postmaster_without_domain(self):
+        with pytest.raises(InvalidDataError):
+            self.process('<postmaster>')
+
+    def test_rejects_missing_email_address(self):
+        with pytest.raises(InvalidDataError):
+            self.process('')
+
     # --------------------------------------------------------------------------
     # SMTP extensions
 
@@ -96,24 +111,21 @@ class MailFromSchemaTest(TestCase):
         assert e.msg() == 'No SMTP extensions allowed for plain SMTP.'
 
     def test_can_parse_extensions(self):
-        schema = self.schema()
-        schema.add('body', StringValidator())
+        schema = MailFromSchemaWithBody()
         input_command = '<foo@example.com> BODY=BINARYMIME'
         cmd_parameters = schema.process(input_command, context={'esmtp': True})
         expected_parameters = {'email': 'foo@example.com', 'body': 'BINARYMIME'}
         assert _subdict(cmd_parameters, {'email', 'body'}) == expected_parameters
 
     def test_ignores_whitespace_surrounding_extensions(self):
-        schema = self.schema()
-        schema.add('body', StringValidator())
+        schema = MailFromSchemaWithBody()
         input_command = '<foo@example.com>   BODY=BINARYMIME  '
         cmd_parameters = schema.process(input_command, context={'esmtp': True})
         expected_parameters = {'email': 'foo@example.com', 'body': 'BINARYMIME'}
         assert _subdict(cmd_parameters, {'email', 'body'}) == expected_parameters
 
     def test_treats_extensions_as_case_insensitive(self):
-        schema = self.schema()
-        schema.add('body', StringValidator())
+        schema = MailFromSchemaWithBody()
         input_command = '<foo@example.com> bOdY=BINARYMIME'
         cmd_parameters = schema.process(input_command, context={'esmtp': True})
         expected_parameters = {'email': 'foo@example.com', 'body': 'BINARYMIME'}
@@ -158,8 +170,36 @@ class MailFromSchemaTest(TestCase):
 
     def test_reject_non_numeric_size_parameter(self):
         input_command = 'foo@example.com SIZE=fnord'
-        with pytest.raises(InvalidDataError):
+        with pytest.raises(InvalidDataError) as exc_ctx:
             self.process(input_command, esmtp=True)
+        assert exc_ctx.value.msg() == 'Invalid size: Must be a number.'
+
+    def test_reject_empty_size_parameter(self):
+        with pytest.raises(InvalidDataError):
+            self.process('foo@example.com SIZE=', esmtp=True)
+
+
+class RcptToSchemaTest(TestCase):
+
+    def process(self, input_string):
+        return RcptToSchema().process(input_string)
+
+    def test_accept_email_address(self):
+        assert self.process('<foo@example.com>') == {'email': 'foo@example.com'}
+
+    def test_accept_postmaster_without_domain(self):
+        # RFC 5321, section 4.1.1.3
+        assert self.process('<Postmaster>') == {'email': 'Postmaster'}
+        assert self.process('<postmaster>') == {'email': 'postmaster'}
+
+    def test_rejects_null_path(self):
+        with pytest.raises(InvalidDataError):
+            self.process('<>')
+
+    def test_rejects_additional_parameters(self):
+        with pytest.raises(InvalidDataError) as exc_ctx:
+            self.process('<foo@example.com> invalid')
+        assert exc_ctx.value.msg() == "Syntactically invalid argument(s) 'invalid'"
 
 
 class AuthPlainSchemaTest(TestCase):
@@ -198,6 +238,38 @@ class AuthPlainSchemaTest(TestCase):
     def test_rejects_invalid_format(self):
         e = self.assert_bad_input(b64encode('foobar'))
         assert e.msg() == 'Garbled data sent'
+
+    def test_rejects_empty_username(self):
+        e = self.assert_bad_input(self.base64('\x00\x00foo'))
+        assert e.msg() == 'Garbled data sent'
+
+    def test_decodes_utf8_credentials(self):
+        credentials = base64.b64encode(b'\x00foo\x00p\xc3\xa4ss').decode('ascii')
+        parameters = self.schema().process(credentials)
+        assert parameters['password'] == 'p\xe4ss'
+
+
+class AuthLoginSchemaTest(TestCase):
+
+    def process(self, input_string):
+        return AuthLoginSchema().process(input_string)
+
+    def test_can_extract_base64_decoded_username(self):
+        assert self.process(b64encode('foo')) == {'username': 'foo'}
+
+    def test_rejects_bad_base64(self):
+        for value in ('invalid!', 'Zm9', 'Zm9v!'):
+            with pytest.raises(InvalidDataError) as exc_ctx:
+                self.process(value)
+            assert exc_ctx.value.msg() == 'Garbled data sent'
+
+    def test_rejects_empty_input(self):
+        with pytest.raises(InvalidDataError):
+            self.process('')
+
+    def test_rejects_more_than_one_parameter(self):
+        with pytest.raises(InvalidDataError):
+            self.process(b64encode('foo') + ' ' + b64encode('bar'))
 
 
 def _subdict(src_dict, keys):
