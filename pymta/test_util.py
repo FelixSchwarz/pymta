@@ -18,12 +18,11 @@ import time
 import warnings
 from unittest import TestCase
 
-from pycerberus.errors import InvalidDataError
-
 from .api import IAuthenticator, IMessageDeliverer, IMTAPolicy
 from .compat import b64encode, queue
 from .mta import PythonMTA
 from .session import SMTPSession
+from .validation import InvalidDataError
 
 
 __all__ = [

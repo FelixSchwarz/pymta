@@ -2,6 +2,21 @@
 Changelog for pymta
 ===================
 
+0.9.0 (unreleased)
+- drop dependency on pycerberus, pymta now validates SMTP command arguments
+  itself (`InvalidDataError` is now available as
+  `pymta.validation.InvalidDataError`)
+- accept the null reverse-path (`MAIL FROM:<>`, used for bounces) and
+  `RCPT TO:<Postmaster>` as required by RFC 5321
+- accept all email addresses which are valid according to RFC 5321, e.g. with
+  "=" (SRS/BATV) or "'" in the local part, quoted local parts and address
+  literals ("user@[127.0.0.1]"). Invalid addresses like ".foo@example.com" or
+  "@example.com" are rejected now.
+- `AUTH PLAIN`/`AUTH LOGIN`: decode credentials as UTF-8, reject invalid base64
+  data more strictly
+- `AUTH LOGIN` with more than one argument is rejected with 501 instead of
+  crashing with a `ValueError`
+
 0.8.0 (2024-07-18)
 - also support Python 3.10-3.12
 - use GitHub Actions for testing

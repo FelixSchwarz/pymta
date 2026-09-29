@@ -5,8 +5,6 @@ from __future__ import print_function, unicode_literals
 
 import sys
 
-from pycerberus import InvalidDataError
-
 from pymta.compat import b64encode, basestring
 from pymta.exceptions import InvalidParametersError, SMTPViolationError
 from pymta.model import Message, Peer
